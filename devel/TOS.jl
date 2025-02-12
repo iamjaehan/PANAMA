@@ -1,5 +1,6 @@
-module TOS
+# Generates Trajectory Options Set(TOS) for a flight
 
+module TOS
 using Dates
 
 # Define the Flight structure

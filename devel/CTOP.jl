@@ -1,34 +1,32 @@
-module CTOP
+# Baseline CTOP algorithm.
 
+module CTOP
 using Dates
+import ..TOS: Flight, add_trajectory_option!
 
 # Function to process TOS from multiple airlines and assign optimal trajectories
-function process_tos!(tos_list::Vector{Dict{String, Any}})
-    # Flatten all trajectory options with flight metadata
-    all_trajectories = []
-    for tos in tos_list
-        flight_id = tos["flight_id"]
-        for option in tos["trajectory_options"]
-            push!(all_trajectories, merge(option, Dict("flight_id" => flight_id)))
-        end
-    end
-
-    # Group trajectories by flight_id
+function process_tos!(tos_list::Vector{Flight})
+    # Group trajectories by flight_id directly from Flight structs
     grouped_trajectories = Dict{String, Vector{Dict{String, Any}}}()
-    for traj in all_trajectories
-        flight_id = traj["flight_id"]
+
+    for flight in tos_list
+        flight_id = flight.flight_id
+        trajectory_options = flight.trajectory_options
+
         if haskey(grouped_trajectories, flight_id)
-            push!(grouped_trajectories[flight_id], traj)
+            append!(grouped_trajectories[flight_id], trajectory_options)
         else
-            grouped_trajectories[flight_id] = [traj]
+            grouped_trajectories[flight_id] = trajectory_options
         end
     end
 
-    # Assign trajectories using traditional CTOP (sort by earliest arrival and lowest RTC)
+    # Assign trajectories using traditional CTOP (sort by earliest valid start time and lowest RTC)
     assigned_flights = []
     for (flight_id, options) in grouped_trajectories
+        # Sorting based on 'valid_start_time' and 'relative_trajectory_cost'
         sorted_options = sort(options, by = x -> (x["valid_start_time"], x["relative_trajectory_cost"]))
         assigned_trajectory = first(sorted_options)
+        
         push!(assigned_flights, Dict(
             "flight_id" => flight_id,
             "assigned_trajectory" => assigned_trajectory
@@ -47,31 +45,17 @@ end
 
 # Example usage with simulated TOS from multiple airlines
 function example_tos_processing()
-    tos_list = [
-        Dict(
-            "flight_id" => "FL123",
-            "trajectory_options" => [
-                Dict("route" => "ORD..ELX..JHW..RKA..LGA", "altitude" => 350, "speed" => 480, "relative_trajectory_cost" => 0, "valid_start_time" => DateTime(2023, 4, 25, 13, 0)),
-                Dict("route" => "ORD..TVC..RKA..IGN..LGA", "altitude" => 370, "speed" => 480, "relative_trajectory_cost" => 10, "valid_start_time" => DateTime(2023, 4, 25, 14, 0))
-            ]
-        ),
-        Dict(
-            "flight_id" => "FL456",
-            "trajectory_options" => [
-                Dict("route" => "DFW..ATL..JFK", "altitude" => 360, "speed" => 500, "relative_trajectory_cost" => 5, "valid_start_time" => DateTime(2023, 4, 25, 13, 10)),
-                Dict("route" => "DFW..MEM..JFK", "altitude" => 340, "speed" => 480, "relative_trajectory_cost" => 2, "valid_start_time" => DateTime(2023, 4, 25, 13, 30))
-            ]
-        ),
-        Dict(
-            "flight_id" => "FL789",
-            "trajectory_options" => [
-                Dict("route" => "LAX..DEN..BOS", "altitude" => 370, "speed" => 490, "relative_trajectory_cost" => 0, "valid_start_time" => DateTime(2023, 4, 25, 13, 5)),
-                Dict("route" => "LAX..ORD..BOS", "altitude" => 350, "speed" => 480, "relative_trajectory_cost" => 3, "valid_start_time" => DateTime(2023, 4, 25, 13, 25))
-            ]
-        )
-    ]
+    # Create sample flights
+    flight1 = Flight("FL123", "ORD", "LGA", DateTime(2023, 4, 25, 13, 0))
+    add_trajectory_option!(flight1, "ORD..ELX..JHW..RKA..LGA", 350, 480, 0, DateTime(2023, 4, 25, 13, 0), nothing, nothing)
+    add_trajectory_option!(flight1, "ORD..TVC..RKA..IGN..LGA", 370, 480, 10, DateTime(2023, 4, 25, 14, 0), nothing, nothing)
 
-    process_tos!(tos_list)
+    flight2 = Flight("FL456", "DFW", "JFK", DateTime(2023, 4, 25, 13, 10))
+    add_trajectory_option!(flight2, "DFW..ATL..JFK", 360, 500, 5, DateTime(2023, 4, 25, 13, 10), nothing, nothing)
+    add_trajectory_option!(flight2, "DFW..MEM..JFK", 340, 480, 2, DateTime(2023, 4, 25, 13, 30), nothing, nothing)
+
+    # Process and assign TOS
+    process_tos!([flight1, flight2])
 end
 
 end # module CTOP
