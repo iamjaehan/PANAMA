@@ -5,7 +5,7 @@ using Dates
 import ..TOS: Flight, add_trajectory_option!
 
 # Function to process TOS from multiple airlines and assign optimal trajectories
-function process_tos!(tos_list::Vector{Flight})
+function process_ctop!(tos_list::Vector{Flight})
     # Group trajectories by flight_id directly from Flight structs
     grouped_trajectories = Dict{String, Vector{Dict{String, Any}}}()
 
@@ -41,6 +41,8 @@ function process_tos!(tos_list::Vector{Flight})
         println("  Relative Trajectory Cost (RTC): ", flight["assigned_trajectory"]["relative_trajectory_cost"])
         println()
     end
+
+    return assigned_flights
 end
 
 # Example usage with simulated TOS from multiple airlines
@@ -55,7 +57,7 @@ function example_tos_processing()
     add_trajectory_option!(flight2, "DFW..MEM..JFK", 340, 480, 2, DateTime(2023, 4, 25, 13, 30), nothing, nothing)
 
     # Process and assign TOS
-    process_tos!([flight1, flight2])
+    process_ctop!([flight1, flight2])
 end
 
 end # module CTOP
