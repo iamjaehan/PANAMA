@@ -35,11 +35,11 @@ geoscatter(wplat,wplon,[],"m")
 %% RRG
 
 % Define origin and destination
-origin = [wplat(30), wplon(30)];  % Modify as needed
+origin = [wplat(1), wplon(1)];  % Modify as needed
 destination = [wplat(end), wplon(end)];
 
 % Parameters for RRG
-num_samples = 5000;   % Number of waypoints to sample for the graph
+num_samples = datalen;   % Number of waypoints to sample for the graph
 radius = 1.5;        % Connection radius (degrees)
 
 % Construct RRG
@@ -50,16 +50,17 @@ G = addnode(G, table(1, origin(1), origin(2), 'VariableNames', {'ID', 'Lat', 'Lo
 % Sample waypoints to build the graph
 for i = 1:num_samples
     idx = randi(datalen);  % Randomly pick a waypoint
+    idx = i;
     new_wp = [wplat(idx), wplon(idx)];
-    
+
     % Find nearby waypoints within a given radius
     distances = vecnorm(node_coords - new_wp, 2, 2); % Euclidean distance
     nearby_nodes = find(distances < radius);
-    
+
     % Add new waypoint to graph
     G = addnode(G, table(i+1, new_wp(1), new_wp(2), 'VariableNames', {'ID', 'Lat', 'Lon'}));
     node_coords = [node_coords; new_wp]; % Append to list
-    
+
     % Connect to nearby nodes
     for j = 1:length(nearby_nodes)
         G = addedge(G, nearby_nodes(j), i+1, distances(nearby_nodes(j)));
@@ -75,14 +76,19 @@ for j = 1:length(nearby_nodes)
 end
 
 %% Compute K-Shortest Paths using Yen’s Algorithm (DISTINCT PATHS)
+G = load("US_waypoint_graph.mat");
+G = G.G;
+node_coords = G.Nodes{:,2:3};
+
 K = 5; % Number of alternative paths
 all_paths = cell(K,1); % Store all paths
 all_path_distances = zeros(K,1);
 
 % Compute the first shortest path using Dijkstra
-start_idx = 127; % Origin node index
+start_idx = 2233; % Origin node index
+end_idx = 1215;
+
 % end_idx = num_samples + 2; % Destination node index
-end_idx = 3700;
 [all_paths{1}, all_path_distances(1)] = shortestpath(G, start_idx, end_idx);
 
 % Find alternative paths ensuring distinct routes
@@ -102,7 +108,7 @@ for k = 2:K
             for i = 1:length(all_paths{prev_k})-1
                 edge_idx = findedge(G_temp, all_paths{prev_k}(i), all_paths{prev_k}(i+1));
                 if edge_idx > 0
-                    G_temp.Edges.Weight(edge_idx) = G_temp.Edges.Weight(edge_idx) * (5 + 5*attempt); % Increase penalty progressively
+                    G_temp.Edges.Weight(edge_idx) = G_temp.Edges.Weight(edge_idx) * (5 * 1.1^attempt); % Increase penalty progressively
                 end
             end
         end
@@ -136,9 +142,11 @@ end
 %% Plot results
 figure(2);
 clf;
-geoplot(wplat, wplon, 'mo'); % Plot all waypoints
+geoplot(wplat, wplon, 'm.','MarkerSize',2); % Plot all waypoints
 hold on;
 geoplot(node_coords(:,1), node_coords(:,2), 'b.', 'MarkerSize', 8); % Graph nodes
+geoplot(node_coords(start_idx,1),node_coords(start_idx,2),'r*','MarkerSize',8,'LineWidth',5)
+geoplot(node_coords(end_idx,1),node_coords(end_idx,2),'b*','MarkerSize',8,'LineWidth',5)
 
 % Plot multiple paths with different colors
 colors = {'r-', 'g-', 'c-','m-','y-'};
@@ -146,11 +154,15 @@ for k = 1:K
     path_lats = G.Nodes.Lat(all_paths{k});
     path_lons = G.Nodes.Lon(all_paths{k});
     % geoplot(path_lats, path_lons, colors{k}, 'LineWidth', 2);
-    geoplot(path_lats, path_lons, 'LineWidth', 2);
+    geoplot(path_lats, path_lons, '-', 'LineWidth', 3, 'Color', [rand(1,3) 0.6]);
 end
 
-legend('Waypoints', 'Graph Nodes', 'Path 1', 'Path 2', 'Path 3');
+geoplot(node_coords(start_idx,1),node_coords(start_idx,2),'r*','MarkerSize',8,'LineWidth',5)
+geoplot(node_coords(end_idx,1),node_coords(end_idx,2),'b*','MarkerSize',8,'LineWidth',5)
+
+legend('Waypoints','Origin','Destination');
 title('RRG with Multiple Alternative Paths');
 hold off;
 
+set(gcf,"Position",[0 0 1200 800])
 geolimits([13 57],[-130 -60])
