@@ -1,4 +1,4 @@
-function TOS = generateTOS(start_idx, end_idx)
+function TOS = generateTOS(start_idx, end_idx, doPlot)
 
 %% Compute K-Shortest Paths using Yen’s Algorithm (DISTINCT PATHS)
 G = load("US_waypoint_graph.mat");
@@ -64,7 +64,7 @@ end
 
 
 %% Plot results
-if false
+if doPlot
 figure(2);
 clf;
 % geoplot(wplat, wplon, 'm.','MarkerSize',2); % Plot all waypoints
@@ -86,10 +86,11 @@ geoplot(node_coords(start_idx,1),node_coords(start_idx,2),'r*','MarkerSize',8,'L
 geoplot(node_coords(end_idx,1),node_coords(end_idx,2),'g*','MarkerSize',8,'LineWidth',5)
 
 legend('Waypoints','Origin','Destination');
-title('RRG with Multiple Alternative Paths');
+title('TOS');
 hold off;
 
-set(gcf,"Position",[0 0 1200 800])
+set(gcf,"Position",[30 100 1200 800])
+set(gca,"FontName","times","FontSize",20)
 geolimits([13 57],[-130 -60])
 end
 

@@ -11,7 +11,7 @@ for i = 1:n
     end
 
     while true
-        TOS = generateTOS(origin,destination);
+        TOS = generateTOS(origin,destination,false);
         if ~isempty(TOS)
             break;
         else
