@@ -126,11 +126,17 @@ function mat_ctb_generation()
         push!(flightSet,parsedFlight)
     end
 
-    # return flightSet
-
     # Generate CTBs
     ctbSet = generateCtbSet(flightSet)
-    return ctbSet
+    selected = findall(x -> x==1, Int.(ctbSet[1].data.vals))
+    println(num_flights)
+    println(selected)
+    selectedRoute = mod.(selected,5)
+    return selectedRoute
 end
+
+# Decoding
+# findall(x -> x==1, Int.(out[1].data.vals))
+# mod.(test,N)
 
 end

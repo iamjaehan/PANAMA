@@ -1,4 +1,4 @@
-n = 10; % Number of flights
+n = 120; % Number of flights
 airlineList = ["AA","UA","OZ","JB","SW"];
 
 TOS_set = cell(n,1);
