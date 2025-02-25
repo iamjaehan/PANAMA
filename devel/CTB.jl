@@ -3,6 +3,7 @@
 module CTB
 using Dates
 using JuMP, Gurobi
+using MAT
 import ..TOS: Flight, ParsedFlight, add_trajectory_option!, parse_flight_info
 
 function FAB_cost(x)
@@ -87,6 +88,48 @@ function example_ctb_generation()
 
     # Generate CTBs
     ctbSet = generateCtbSet([flight1, flight2])
+    return ctbSet
+end
+
+function mat_parser(matTOS)
+    flightNum = matTOS["flightNum"]
+    origin = string(matTOS["options"][1][1])
+    destination = string(matTOS["options"][1][end])
+    timeArray = Int.(matTOS["depTime"])
+    earliest_departure = DateTime(timeArray[1], timeArray[2], timeArray[3], timeArray[4], timeArray[5])
+    flight = Flight(flightNum,origin,destination,earliest_departure)
+
+    num_options = length(matTOS["options"])
+    for i = 1:num_options
+        option = matTOS["options"][i]
+        route = string(Int.(option))
+        altitude = Int(matTOS["altitude"])
+        speed = 300
+        RTC = Int(round(matTOS["RTK"][i]*60))
+        add_trajectory_option!(flight,route,altitude,speed,RTC,earliest_departure,nothing,nothing)
+    end
+
+    return flight
+end
+
+function mat_ctb_generation()
+    flightSet = Vector{ParsedFlight}(undef,0)
+
+    # Load mat files
+    out=read(matopen("./TOS.mat"))
+    TOS_set = out["TOS_set"]
+    num_flights = length(TOS_set)
+
+    # Parse TOS set
+    for i = 1:num_flights
+        parsedFlight = parse_flight_info(mat_parser(TOS_set[i]))
+        push!(flightSet,parsedFlight)
+    end
+
+    # return flightSet
+
+    # Generate CTBs
+    ctbSet = generateCtbSet(flightSet)
     return ctbSet
 end
 

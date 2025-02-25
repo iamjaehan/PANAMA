@@ -1,3 +1,5 @@
+function TOS = generateTOS(start_idx, end_idx)
+
 %% Compute K-Shortest Paths using Yen’s Algorithm (DISTINCT PATHS)
 G = load("US_waypoint_graph.mat");
 G = G.G;
@@ -8,8 +10,9 @@ all_paths = cell(K,1); % Store all paths
 all_path_distances = zeros(K,1);
 
 % Compute the first shortest path using Dijkstra
-start_idx = 4127; % Origin node index
-end_idx = 2887;
+% start_idx = 2887; % Origin node index
+% start_idx = 31;
+% end_idx = 4127; % Austin arrival
 
 % end_idx = num_samples + 2; % Destination node index
 [all_paths{1}, all_path_distances(1)] = shortestpath(G, start_idx, end_idx);
@@ -31,7 +34,7 @@ for k = 2:K
             for i = 1:length(all_paths{prev_k})-1
                 edge_idx = findedge(G_temp, all_paths{prev_k}(i), all_paths{prev_k}(i+1));
                 if edge_idx > 0
-                    G_temp.Edges.Weight(edge_idx) = G_temp.Edges.Weight(edge_idx) * (5 * 1.1^attempt); % Increase penalty progressively
+                    G_temp.Edges.Weight(edge_idx) = G_temp.Edges.Weight(edge_idx) * (5 * 2^attempt); % Increase penalty progressively
                 end
             end
         end
@@ -52,7 +55,7 @@ for k = 2:K
     
     % If no unique path found after max_attempts, break out
     if ~unique_path_found
-        warning('Could not find %d distinct paths. Stopping at %d.', K, k-1);
+        % warning('Could not find %d distinct paths. Stopping at %d.', K, k-1);
         K = k-1; % Adjust K to reflect actual number of paths found
         break;
     end
@@ -61,6 +64,7 @@ end
 
 
 %% Plot results
+if false
 figure(2);
 clf;
 % geoplot(wplat, wplon, 'm.','MarkerSize',2); % Plot all waypoints
@@ -87,3 +91,16 @@ hold off;
 
 set(gcf,"Position",[0 0 1200 800])
 geolimits([13 57],[-130 -60])
+end
+
+%% Export TOS
+if unique_path_found
+    TOS.options = all_paths;
+    RTK = all_path_distances / 9.96; %min
+    TOS.RTK = RTK - RTK(1);
+    % save("TOS","TOS");
+else
+    TOS = [];
+end
+
+end

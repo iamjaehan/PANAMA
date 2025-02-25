@@ -75,19 +75,3 @@ nearby_nodes = find(distances < radius);
 for j = 1:length(nearby_nodes)
     G = addedge(G, nearby_nodes(j), num_samples+2, distances(nearby_nodes(j)));
 end
-
-
-
-%% Export TOS
-TOS = all_paths;
-RTK = all_path_distances;
-RTK = RTK - all_path_distances(1);
-
-TOS_len = length(all_paths);
-
-for i = 1:TOS_len
-    trajIdx = TOS{i};
-    traj_len = length(trajIdx);
-
-end
-node_coords(start_idx,1);
