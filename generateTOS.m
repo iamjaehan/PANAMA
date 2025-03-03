@@ -97,7 +97,8 @@ end
 %% Export TOS
 if unique_path_found
     TOS.options = all_paths;
-    RTK = all_path_distances / 9.96; %min
+    % RTK = all_path_distances / 9.96; %min
+    RTK = [0 10 15 20 30];
     TOS.RTK = RTK - RTK(1);
     % save("TOS","TOS");
 else

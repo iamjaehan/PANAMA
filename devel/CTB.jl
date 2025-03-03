@@ -2,15 +2,166 @@
 
 module CTB
 using Dates
-using JuMP, Gurobi
+using JuMP, Gurobi, LinearAlgebra, Luxor
 using MAT
 import ..TOS: Flight, ParsedFlight, add_trajectory_option!, parse_flight_info
 
-function FAB_cost(x)
-    return sum(x)
+function GetParam()
+    nm2km = 1.812
+    
+    conflictRadius = 15
+    speed = 300 # km/h
+    sampleRate = 5 # min (for every sampleRate [min], a trajectory point is generated)
+
+    wptPos = read(matopen("./Wpt_pos.mat"))
+    wptPos = wptPos["test"]
+    fabInfo = read(matopen("./FIR_coord.mat"))
+    fabInfo = fabInfo["data"]
+
+    conflictRadius = conflictRadius * nm2km
+    return (; conflictRadius, speed, sampleRate, wptPos, fabInfo)
 end
 
-function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64})
+function haversine(lat1, lon1, lat2, lon2)
+    R = 6371.0  # Earth radius in km
+    dlat = deg2rad(lat2 - lat1)
+    dlon = deg2rad(lon2 - lon1)
+    a = sin(dlat / 2)^2 + cos(deg2rad(lat1)) * cos(deg2rad(lat2)) * sin(dlon / 2)^2
+    c = 2 * atan(sqrt(a), sqrt(1 - a))
+    return R * c
+end
+
+function compute_heading(lat1, lon1, lat2, lon2)
+    dlon = deg2rad(lon2 - lon1)
+    x = cos(deg2rad(lat2)) * sin(dlon)
+    y = cos(deg2rad(lat1)) * sin(deg2rad(lat2)) - sin(deg2rad(lat1)) * cos(deg2rad(lat2)) * cos(dlon)
+    heading = rad2deg(atan(x, y))
+    return mod(heading, 360)  # Ensure heading is between 0 and 360 degrees
+end
+
+function local_FAB_cost(X,V)
+    C = V*pinv(X)
+    A = C[:,1:end-1]
+    ei = real(eigen(A).values)
+    ei = filter(x -> x < 0, ei)
+    if isempty(ei)
+        H = 0
+    else
+        H = maximum(abs.(ei))
+    end
+    return H
+end
+
+function FAB_cost(x, tos_list, fabIdx, param)
+    r = param.conflictRadius  # Conflict radius (15nm)
+    v = param.speed  # Aircraft speed (km/h)
+    d = param.sampleRate  # Sampling rate (min)
+    wptPos = param.wptPos  # Waypoint positions (lat, lon)
+    fabInfo = param.fabInfo  # FIR/ARTCC boundaries
+    num_flights = length(tos_list)
+
+    tosIdx = zeros(Int, num_flights)  # Selected trajectory indices
+    startTime = Array{DateTime}(undef, num_flights)  # Start time for each flight
+
+    # **Step 1: Identify selected TOS for each flight**
+    for i = 1:num_flights
+        localVar = x[(i-1)*5+1:5*i]
+        tosIdx[i] = findmax(localVar)[2]  # Extract selected TOS index
+        startTime[i] = tos_list[i].trajectory_options[tosIdx[i]].valid_start_time  # Store start time
+    end
+
+    # **Step 2: Synchronize Start Time & Define Unified Timeline**
+    globalStartTime = minimum(startTime)  # Earliest start time
+    globalEndTime = maximum([startTime[i] + Minute(d * 500) for i in 1:num_flights])  # Approximate max time
+    timeline = collect(globalStartTime:Minute(d):globalEndTime)  # Time grid
+
+    # **Step 3: Generate & Filter Spatiotemporal Trajectory Samples**
+    traj_samples = Dict{Int, Dict{DateTime, Tuple{Float64, Float64, Float64}}}()  # (time => (lat, lon, heading))
+
+    for i = 1:num_flights
+        traj_samples[i] = Dict{DateTime, Tuple{Float64, Float64, Float64}}()
+        
+        # Get trajectory waypoints for selected TOS
+        waypoints = tos_list[i].trajectory_options[tosIdx[i]].route
+        waypoints = parse.(Int, split(waypoints[2:end-1]))
+        dep_time = startTime[i]  # Flight start time
+
+        # Find the closest timeline point after the flight's start time
+        start_idx = findfirst(t -> t >= dep_time, timeline)
+
+        # Generate trajectory points from the closest timeline point
+        time = timeline[start_idx]  # Set time to the closest point after dep_time
+        for j = 1:length(waypoints)-1
+            wp1 = wptPos[waypoints[j],:]  # (lat1, lon1)
+            wp2 = wptPos[waypoints[j+1],:]  # (lat2, lon2)
+            
+            dist = haversine(wp1[1], wp1[2], wp2[1], wp2[2])  # Distance in km
+            flight_time = dist / v * 60  # Time to next waypoint (min)
+            heading = compute_heading(wp1[1], wp1[2], wp2[1], wp2[2])  # Compute heading
+            
+            # Sample points along trajectory every `d` minutes
+            num_samples = ceil(Int, flight_time / d)
+            for k in 0:num_samples
+                alpha = k / num_samples
+                lat = (1 - alpha) * wp1[1] + alpha * wp2[1]
+                lon = (1 - alpha) * wp1[2] + alpha * wp2[2]
+                if time ∈ timeline  # Ensure alignment with timeline
+                    # **Step 3.1: Filter out points outside the FAB**
+                    points = [Luxor.Point(p[1], p[2]) for p in eachrow(collect(fabInfo)[fabIdx][2][:,1:2])]
+                    if isinside(Luxor.Point(lon, lat), points)
+                        traj_samples[i][time] = (lat, lon, heading)
+                    end
+                end
+                time += Minute(d)  # Increment time by d minutes
+            end
+        end
+    end
+
+    # **Step 4: Compute Global FAB Cost Based on Conflict Detection**
+    globalCost = 0
+    for t in timeline
+        points_at_t = []  # List of points at current time step
+        X = Float64[]
+        X = reshape(X,3,0)
+        V = Float64[]
+        V = reshape(V,2,0)
+
+        # Collect all points at time `t` that are inside FAB
+        for i = 1:num_flights
+            if haskey(traj_samples[i], t)
+                lat, lon, heading = traj_samples[i][t]
+                push!(points_at_t, (i, lon, lat, heading))
+                global points_at_t
+            end
+        end
+
+        # **Step 5: Detect Conflicts & Compute FAB Cost for Each Time Step**
+        num_points = length(points_at_t)
+        if num_points == 1 || num_points == 0
+            continue
+        else
+            for a = 1:num_points
+                i, lon1, lat1, heading1 = points_at_t[a]
+                X = hcat(X, [lon1;lat1;1])
+                V = hcat(V, [cos(heading1*pi/180);sin(heading1*pi/180)])
+                for b = 1:num_points
+                    j, lon2, lat2, heading2 = points_at_t[b]
+                    dist = haversine(lat1, lon1, lat2, lon2)
+                    if dist ≤ r  # If within conflict radius
+                        X = hcat(X, [lon2;lat2;1])
+                        V = hcat(V, [cos(heading2*pi/180);sin(heading2*pi/180)])
+                    end
+                end
+            end
+            local_cost = local_FAB_cost(X, V)  # Compute local FAB cost with direction
+            globalCost += local_cost  # Add to total cost
+        end
+    end
+
+    return globalCost
+end
+
+function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
 model = Model(Gurobi.Optimizer)
 set_silent(model)
 
@@ -34,10 +185,16 @@ valid_options = Dict(i => 1:length(tos_list[i].trajectory_options) for i in 1:nu
 w_airlines = weights[1:num_airlines]
 w_FAB = weights[num_airlines+1]
 
+# Define an auxiliary variable for FAB cost
+@variable(model, fab_cost)
+
+# Constraint linking fab_cost to the computed FAB cost
+@constraint(model, fab_cost .== FAB_cost(x, tos_list, fabIdx, param))
+
 # Objective function: Sum of airline and FAB costs
 @objective(model, Min, 
-sum(w_airlines[flight_to_airline[i]] * tos_list[i].trajectory_options[j].relative_trajectory_cost * x[i, j] 
-for i in 1:num_flights, j in valid_options[i]) + w_FAB * FAB_cost(x))
+    sum(w_airlines[flight_to_airline[i]] * tos_list[i].trajectory_options[j].relative_trajectory_cost * x[i, j] 
+        for i in 1:num_flights, j in valid_options[i]) + w_FAB * fab_cost)
 
 # Constraint: Each flight selects exactly one option
 @constraint(model, [i=1:num_flights], sum(x[i, j] for j in valid_options[i]) == 1)
@@ -47,13 +204,13 @@ optimize!(model)
 return value.(x)
 end
 
-function generateCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64})
+function generateCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
     # Generate CTBs
-    ctb = solveCtb(tos_list, weights)
+    ctb = solveCtb(tos_list, weights, fabIdx, param)
     return ctb
 end
 
-function generateCtbSet(tos_list::Vector{ParsedFlight})
+function generateCtbSet(tos_list::Vector{ParsedFlight}, fabIdx, param)
     ctbSet = []
     num_flights = length(tos_list)
 
@@ -66,28 +223,11 @@ function generateCtbSet(tos_list::Vector{ParsedFlight})
         weights = rand(num_airlines + 1)
         weights = weights / sum(weights)
         # Acquire a CTB
-        ctb = generateCtb(tos_list, weights)
+        ctb = generateCtb(tos_list, weights, fabIdx, param)
         push!(ctbSet, ctb)
     end
 
     # Return the set of CTBs
-    return ctbSet
-end
-
-function example_ctb_generation()
-    # Create sample flights
-    flight1 = Flight("AA123", "ORD", "LGA", DateTime(2023, 4, 25, 13, 0))
-    add_trajectory_option!(flight1, "ORD..ELX..JHW..RKA..LGA", 350, 480, 0, DateTime(2023, 4, 25, 13, 0), nothing, nothing)
-    add_trajectory_option!(flight1, "ORD..TVC..RKA..IGN..LGA", 370, 480, 10, DateTime(2023, 4, 25, 14, 0), nothing, nothing)
-    flight1 = parse_flight_info(flight1)
-
-    flight2 = Flight("OZ456", "DFW", "JFK", DateTime(2023, 4, 25, 13, 10))
-    add_trajectory_option!(flight2, "DFW..ATL..JFK", 360, 500, 5, DateTime(2023, 4, 25, 13, 10), nothing, nothing)
-    add_trajectory_option!(flight2, "DFW..MEM..JFK", 340, 480, 2, DateTime(2023, 4, 25, 13, 30), nothing, nothing)
-    flight2 = parse_flight_info(flight2)
-
-    # Generate CTBs
-    ctbSet = generateCtbSet([flight1, flight2])
     return ctbSet
 end
 
@@ -119,6 +259,12 @@ function mat_ctb_generation()
     out=read(matopen("./TOS.mat"))
     TOS_set = out["TOS_set"]
     num_flights = length(TOS_set)
+    for i = 1:num_flights
+        for j = 1:5
+            TOS_set[i]["options"][j] = Int.(TOS_set[i]["options"][j])
+        end
+        TOS_set[i]["RTK"] = Int.(TOS_set[i]["RTK"])
+    end
 
     # Parse TOS set
     for i = 1:num_flights
@@ -127,16 +273,15 @@ function mat_ctb_generation()
     end
 
     # Generate CTBs
-    ctbSet = generateCtbSet(flightSet)
+    fabIdx = 1
+    param = GetParam()
+
+    ctbSet = generateCtbSet(flightSet, fabIdx, param)
     selected = findall(x -> x==1, Int.(ctbSet[1].data.vals))
     println(num_flights)
     println(selected)
     selectedRoute = mod.(selected,5)
     return selectedRoute
 end
-
-# Decoding
-# findall(x -> x==1, Int.(out[1].data.vals))
-# mod.(test,N)
 
 end

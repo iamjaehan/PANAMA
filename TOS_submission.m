@@ -1,4 +1,4 @@
-n = 120; % Number of flights
+n = 10; % Number of flights
 airlineList = ["AA","UA","OZ","JB","SW"];
 
 TOS_set = cell(n,1);
@@ -26,7 +26,7 @@ for i = 1:n
     % Assign fake flight information
     flightNum = randsample(airlineList,1) + num2str(randsample(0:9,1)) + num2str(randsample(0:9,1)) ...
         + num2str(randsample(0:9,1)) + num2str(randsample(0:9,1));
-    depTime = [25 2 24 randsample(0:23,1) randsample(0:59,1)];
+    depTime = [2025 2 24 randsample(8:9,1) randsample(0:59,1)];
     altitude = randsample(250:10:360,1);
 
     % Add data

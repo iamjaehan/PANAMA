@@ -30,48 +30,59 @@ figure(1)
 clf
 geoplot(uslat,uslon,"--")
 hold on
-geoscatter(wplat,wplon,[],"m")
+geoscatter(wplat,wplon,[],"m.")
+geolimits([13 57],[-130 -60])
+
+% Draw FIR
+fir = load("FIR_coord.mat");
+fir = fir.data;
+fir_names = fieldnames(fir);
+fir_num = length(fir_names);
+for i = 1:fir_num
+    local_coord = fir.(fir_names{i});
+    geoplot(local_coord(:,2),local_coord(:,1),'-','LineWidth',5)
+end
 
 %% RRG
 
-% Define origin and destination
-origin = [wplat(1), wplon(1)];  % Modify as needed
-destination = [wplat(end), wplon(end)];
-
-% Parameters for RRG
-num_samples = datalen;   % Number of waypoints to sample for the graph
-radius = 1.5;        % Connection radius (degrees)
-
-% Construct RRG
-G = graph(); % Initialize an empty graph
-node_coords = [origin]; % Start with the origin node
-G = addnode(G, table(1, origin(1), origin(2), 'VariableNames', {'ID', 'Lat', 'Lon'}));
-
-% Sample waypoints to build the graph
-for i = 1:num_samples
-    idx = randi(datalen);  % Randomly pick a waypoint
-    idx = i;
-    new_wp = [wplat(idx), wplon(idx)];
-
-    % Find nearby waypoints within a given radius
-    % distances = vecnorm(node_coords - new_wp, 2, 2); % Euclidean distance
-    distances = greatCircleDistance(node_coords, new_wp); % Great circle distance
-    nearby_nodes = find(distances < radius * pi / 180 * 6371);
-
-    % Add new waypoint to graph
-    G = addnode(G, table(i+1, new_wp(1), new_wp(2), 'VariableNames', {'ID', 'Lat', 'Lon'}));
-    node_coords = [node_coords; new_wp]; % Append to list
-
-    % Connect to nearby nodes
-    for j = 1:length(nearby_nodes)
-        G = addedge(G, nearby_nodes(j), i+1, distances(nearby_nodes(j)));
-    end
-end
-
-% Add the destination
-G = addnode(G, table(num_samples+2, destination(1), destination(2), 'VariableNames', {'ID', 'Lat', 'Lon'}));
-distances = vecnorm(node_coords - destination, 2, 2);
-nearby_nodes = find(distances < radius);
-for j = 1:length(nearby_nodes)
-    G = addedge(G, nearby_nodes(j), num_samples+2, distances(nearby_nodes(j)));
-end
+% % Define origin and destination
+% origin = [wplat(1), wplon(1)];  % Modify as needed
+% destination = [wplat(end), wplon(end)];
+% 
+% % Parameters for RRG
+% num_samples = datalen;   % Number of waypoints to sample for the graph
+% radius = 1.5;        % Connection radius (degrees)
+% 
+% % Construct RRG
+% G = graph(); % Initialize an empty graph
+% node_coords = [origin]; % Start with the origin node
+% G = addnode(G, table(1, origin(1), origin(2), 'VariableNames', {'ID', 'Lat', 'Lon'}));
+% 
+% % Sample waypoints to build the graph
+% for i = 1:num_samples
+%     idx = randi(datalen);  % Randomly pick a waypoint
+%     idx = i;
+%     new_wp = [wplat(idx), wplon(idx)];
+% 
+%     % Find nearby waypoints within a given radius
+%     % distances = vecnorm(node_coords - new_wp, 2, 2); % Euclidean distance
+%     distances = greatCircleDistance(node_coords, new_wp); % Great circle distance
+%     nearby_nodes = find(distances < radius * pi / 180 * 6371);
+% 
+%     % Add new waypoint to graph
+%     G = addnode(G, table(i+1, new_wp(1), new_wp(2), 'VariableNames', {'ID', 'Lat', 'Lon'}));
+%     node_coords = [node_coords; new_wp]; % Append to list
+% 
+%     % Connect to nearby nodes
+%     for j = 1:length(nearby_nodes)
+%         G = addedge(G, nearby_nodes(j), i+1, distances(nearby_nodes(j)));
+%     end
+% end
+% 
+% % Add the destination
+% G = addnode(G, table(num_samples+2, destination(1), destination(2), 'VariableNames', {'ID', 'Lat', 'Lon'}));
+% distances = vecnorm(node_coords - destination, 2, 2);
+% nearby_nodes = find(distances < radius);
+% for j = 1:length(nearby_nodes)
+%     G = addedge(G, nearby_nodes(j), num_samples+2, distances(nearby_nodes(j)));
+% end
