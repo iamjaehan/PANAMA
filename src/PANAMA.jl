@@ -8,5 +8,7 @@ include("..//devel/CTOP.jl")
 using .CTOP
 include("..//devel/CTB.jl")
 using .CTB
+include("..//devel/GA.jl")
+using .GA
 
 end # module PANAMA

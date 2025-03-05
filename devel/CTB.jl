@@ -52,7 +52,7 @@ function local_FAB_cost(X,V)
     return H
 end
 
-function FAB_cost(x, tos_list, fabIdx, param)
+function FAB_cost2(x, tos_list, fabIdx, param)
     r = param.conflictRadius  # Conflict radius (15nm)
     v = param.speed  # Aircraft speed (km/h)
     d = param.sampleRate  # Sampling rate (min)
@@ -63,19 +63,19 @@ function FAB_cost(x, tos_list, fabIdx, param)
     tosIdx = zeros(Int, num_flights)  # Selected trajectory indices
     startTime = Array{DateTime}(undef, num_flights)  # Start time for each flight
 
-    # **Step 1: Identify selected TOS for each flight**
+    # Step 1: Identify selected TOS for each flight
     for i = 1:num_flights
-        localVar = x[(i-1)*5+1:5*i]
+        localVar = x[i,1:5]
         tosIdx[i] = findmax(localVar)[2]  # Extract selected TOS index
         startTime[i] = tos_list[i].trajectory_options[tosIdx[i]].valid_start_time  # Store start time
     end
 
-    # **Step 2: Synchronize Start Time & Define Unified Timeline**
+    # Step 2: Synchronize Start Time & Define Unified Timeline
     globalStartTime = minimum(startTime)  # Earliest start time
     globalEndTime = maximum([startTime[i] + Minute(d * 500) for i in 1:num_flights])  # Approximate max time
     timeline = collect(globalStartTime:Minute(d):globalEndTime)  # Time grid
 
-    # **Step 3: Generate & Filter Spatiotemporal Trajectory Samples**
+    # Step 3: Generate & Filter Spatiotemporal Trajectory Samples
     traj_samples = Dict{Int, Dict{DateTime, Tuple{Float64, Float64, Float64}}}()  # (time => (lat, lon, heading))
 
     for i = 1:num_flights
@@ -117,7 +117,7 @@ function FAB_cost(x, tos_list, fabIdx, param)
         end
     end
 
-    # **Step 4: Compute Global FAB Cost Based on Conflict Detection**
+    # Step 4: Compute Global FAB Cost Based on Conflict Detection
     globalCost = 0
     for t in timeline
         points_at_t = []  # List of points at current time step
@@ -135,7 +135,7 @@ function FAB_cost(x, tos_list, fabIdx, param)
             end
         end
 
-        # **Step 5: Detect Conflicts & Compute FAB Cost for Each Time Step**
+        # Step 5: Detect Conflicts & Compute FAB Cost for Each Time Step
         num_points = length(points_at_t)
         if num_points == 1 || num_points == 0
             continue
@@ -159,6 +159,10 @@ function FAB_cost(x, tos_list, fabIdx, param)
     end
 
     return globalCost
+end
+
+function FAB_cost(x, tos_list, fabIdx, param)
+    return sum(x)
 end
 
 function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
@@ -185,16 +189,10 @@ valid_options = Dict(i => 1:length(tos_list[i].trajectory_options) for i in 1:nu
 w_airlines = weights[1:num_airlines]
 w_FAB = weights[num_airlines+1]
 
-# Define an auxiliary variable for FAB cost
-@variable(model, fab_cost)
-
-# Constraint linking fab_cost to the computed FAB cost
-@constraint(model, fab_cost .== FAB_cost(x, tos_list, fabIdx, param))
-
 # Objective function: Sum of airline and FAB costs
 @objective(model, Min, 
     sum(w_airlines[flight_to_airline[i]] * tos_list[i].trajectory_options[j].relative_trajectory_cost * x[i, j] 
-        for i in 1:num_flights, j in valid_options[i]) + w_FAB * fab_cost)
+        for i in 1:num_flights, j in valid_options[i]) + w_FAB * FAB_cost(x, tos_list,fabIdx,param))
 
 # Constraint: Each flight selects exactly one option
 @constraint(model, [i=1:num_flights], sum(x[i, j] for j in valid_options[i]) == 1)

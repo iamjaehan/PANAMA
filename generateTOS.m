@@ -85,6 +85,16 @@ end
 geoplot(node_coords(start_idx,1),node_coords(start_idx,2),'r*','MarkerSize',8,'LineWidth',5)
 geoplot(node_coords(end_idx,1),node_coords(end_idx,2),'g*','MarkerSize',8,'LineWidth',5)
 
+% Draw FIR
+fir = load("FIR_coord.mat");
+fir = fir.data;
+fir_names = fieldnames(fir);
+fir_num = length(fir_names);
+for i = 1:fir_num
+    local_coord = fir.(fir_names{i});
+    geoplot(local_coord(:,2),local_coord(:,1),':','LineWidth',2,'Color',[0 0 0 0.5])
+end
+
 legend('Waypoints','Origin','Destination');
 title('TOS');
 hold off;
