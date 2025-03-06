@@ -5,6 +5,7 @@ using Dates
 using JuMP, Gurobi, LinearAlgebra, Luxor
 using MAT
 import ..TOS: Flight, ParsedFlight, add_trajectory_option!, parse_flight_info
+import ..GA: MI_LXPM
 
 function GetParam()
     nm2km = 1.812
@@ -52,7 +53,7 @@ function local_FAB_cost(X,V)
     return H
 end
 
-function FAB_cost2(x, tos_list, fabIdx, param)
+function FAB_cost(x, tos_list, fabIdx, param)
     r = param.conflictRadius  # Conflict radius (15nm)
     v = param.speed  # Aircraft speed (km/h)
     d = param.sampleRate  # Sampling rate (min)
@@ -65,7 +66,8 @@ function FAB_cost2(x, tos_list, fabIdx, param)
 
     # Step 1: Identify selected TOS for each flight
     for i = 1:num_flights
-        localVar = x[i,1:5]
+        # localVar = x[5*(i-1)+1:5*i] # For GA
+        localVar = x[i,1:5] # For Gurobi
         tosIdx[i] = findmax(localVar)[2]  # Extract selected TOS index
         startTime[i] = tos_list[i].trajectory_options[tosIdx[i]].valid_start_time  # Store start time
     end
@@ -131,7 +133,6 @@ function FAB_cost2(x, tos_list, fabIdx, param)
             if haskey(traj_samples[i], t)
                 lat, lon, heading = traj_samples[i][t]
                 push!(points_at_t, (i, lon, lat, heading))
-                global points_at_t
             end
         end
 
@@ -161,11 +162,7 @@ function FAB_cost2(x, tos_list, fabIdx, param)
     return globalCost
 end
 
-function FAB_cost(x, tos_list, fabIdx, param)
-    return sum(x)
-end
-
-function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
+function solveCtb2(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
 model = Model(Gurobi.Optimizer)
 set_silent(model)
 
@@ -202,9 +199,79 @@ optimize!(model)
 return value.(x)
 end
 
+function SetMiscData(tos_list, fabIdx, param, w, flight_to_airline, valid_options, num_flights)
+    global MiscTosList = tos_list
+    global MiscFabIdx = fabIdx
+    global MiscParam = param
+    global MiscWeights = w
+    global MiscFlightToAirline = flight_to_airline
+    global MiscValidOptions = valid_options
+    global MiscNumFlights = num_flights
+end
+
+function GetMiscData()
+    return (; MiscTosList, MiscFabIdx, MiscParam, MiscWeights, MiscFlightToAirline, MiscValidOptions, MiscNumFlights)
+end
+
+function cost_function(x)
+    misc = GetMiscData()
+    w_airlines = misc.MiscWeights[1]
+    w_FAB = misc.MiscWeights[2]
+    flight_to_airline = misc.MiscFlightToAirline
+    valid_options = misc.MiscValidOptions
+    tos_list = misc.MiscTosList
+    fabIdx = misc.MiscFabIdx
+    param = misc.MiscParam
+    num_flights = misc.MiscNumFlights
+
+    cost = 0
+    for i in 1:num_flights
+        for j in valid_options[i]
+            cost += w_airlines[flight_to_airline[i]] * tos_list[i].trajectory_options[j].relative_trajectory_cost * x[5*(i-1)+j]
+        end
+    end
+    cost += w_FAB * FAB_cost(x, tos_list,fabIdx,param)
+
+    return cost
+end
+
+function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
+    num_flights = length(tos_list)
+    
+    # Identify unique airlines by extracting first two letters of flight_id
+    airline_codes = unique(first(tos_list[i].flight_id, 2) for i in 1:num_flights)
+    num_airlines = length(airline_codes)
+    
+    # Map flights to their respective airline index
+    flight_to_airline = Dict(i => findfirst(==(first(tos_list[i].flight_id, 2)), airline_codes) 
+                   for i in 1:num_flights)
+    
+    # Dictionary for valid options per flight
+    valid_options = Dict(i => 1:length(tos_list[i].trajectory_options) for i in 1:num_flights)
+    
+    # Weight variables for airlines and FAB
+    w_airlines = weights[1:num_airlines]
+    w_FAB = weights[num_airlines+1]
+    w = [w_airlines, w_FAB]
+
+    # Transfer data for cost function computation
+    SetMiscData(tos_list, fabIdx, param, w, flight_to_airline, valid_options, num_flights)
+
+    # Set bound
+    bounds = []
+    for i = 1:sum(length(valid_options[i]) for i in 1:num_flights)
+        push!(bounds,(0,1))
+    end
+
+    # Solve!
+    best_solution, best_cost = MI_LXPM(cost_function, bounds, 10, 20, 3, 0.8, 0.1, 0.3, 2.0)
+    
+    return best_solution, best_cost
+    end
+
 function generateCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
     # Generate CTBs
-    ctb = solveCtb(tos_list, weights, fabIdx, param)
+    ctb = solveCtb2(tos_list, weights, fabIdx, param)
     return ctb
 end
 
@@ -217,7 +284,8 @@ function generateCtbSet(tos_list::Vector{ParsedFlight}, fabIdx, param)
     num_airlines = length(airline_codes)
 
     # Generate CTBs
-    for i = 1:num_airlines + 1
+    # for i = 1:num_airlines + 1
+    for i in 1:1
         weights = rand(num_airlines + 1)
         weights = weights / sum(weights)
         # Acquire a CTB
@@ -273,11 +341,11 @@ function mat_ctb_generation()
     # Generate CTBs
     fabIdx = 1
     param = GetParam()
-
+    @time begin
     ctbSet = generateCtbSet(flightSet, fabIdx, param)
-    selected = findall(x -> x==1, Int.(ctbSet[1].data.vals))
-    println(num_flights)
-    println(selected)
+    end
+    
+    selected = findall(x -> x==1, Int.(ctbSet[1][1]))
     selectedRoute = mod.(selected,5)
     return selectedRoute
 end

@@ -9,7 +9,12 @@ function MI_LXPM(cost_function, bounds, num_generations, population_size, tourna
     population = [[rand(bounds[j][1]:0.01:bounds[j][2]) for j in 1:length(bounds)] for _ in 1:population_size]
     
     for generation in 1:num_generations
-        fitness = [cost_function(round.(ind)) for ind in population]  # Evaluate fitness with integer constraints
+        # fitness = [cost_function(round.(ind)) for ind in population]  # Evaluate fitness with integer constraints
+        fitness = Vector{Float64}(undef, length(population))  # Pre-allocate array
+        Threads.@threads for i in eachindex(population)
+            fitness[i] = cost_function(round.(population[i]))
+        end
+
         
         # Apply tournament selection
         selected_parents = tournament_selection(population, fitness, tournament_size)
@@ -22,10 +27,15 @@ function MI_LXPM(cost_function, bounds, num_generations, population_size, tourna
         offspring = [round.(ind) for ind in offspring]
         
         # Evaluate new population
-        offspring_fitness = [cost_function(ind) for ind in offspring]
+        # offspring_fitness = [cost_function(ind) for ind in offspring]
+        offspring_fitness = Vector{Float64}(undef, length(offspring))
+        Threads.@threads for i in eachindex(offspring)
+            offspring_fitness[i] = cost_function(offspring[i])
+        end
         
         # Select the best individuals for the next generation
         population = survival_selection(population, fitness, offspring, offspring_fitness)
+        println(generation)
     end
     
     # Return the best solution found
@@ -91,12 +101,12 @@ function survival_selection(old_pop, old_fit, new_pop, new_fit)
 end
 
 function test_cost_function(x)
-    # return (x[1] - 5)^2 + (x[2] - 10)^2  # Squared distance from (5,10)
-    return (maximum(x) - minimum(x))
+    return (x[1] - 5)^2 + (x[2] - 10)^2 - x[3]  # Squared distance from (5,10)
+    # return (maximum(x) - minimum(x))
 end
 
 function tester()
-bounds = [(0, 10), (0, 20)]  # Lower and upper bounds for each variable
+bounds = [(0, 1), (0, 1), (0,1)]  # Lower and upper bounds for each variable
 best_solution, best_cost = MI_LXPM(
     test_cost_function, 
     bounds, 
