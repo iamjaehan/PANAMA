@@ -66,8 +66,8 @@ function FAB_cost(x, tos_list, fabIdx, param)
 
     # Step 1: Identify selected TOS for each flight
     for i = 1:num_flights
-        # localVar = x[5*(i-1)+1:5*i] # For GA
-        localVar = x[i,1:5] # For Gurobi
+        localVar = x[5*(i-1)+1:5*i] # For GA
+        # localVar = x[i,1:5] # For Gurobi
         tosIdx[i] = findmax(localVar)[2]  # Extract selected TOS index
         startTime[i] = tos_list[i].trajectory_options[tosIdx[i]].valid_start_time  # Store start time
     end
@@ -271,7 +271,8 @@ function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabI
 
 function generateCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
     # Generate CTBs
-    ctb = solveCtb2(tos_list, weights, fabIdx, param)
+    # ctb = solveCtb2(tos_list, weights, fabIdx, param)
+    ctb = solveCtb(tos_list, weights, fabIdx, param)
     return ctb
 end
 
@@ -346,7 +347,8 @@ function mat_ctb_generation()
     end
     
     selected = findall(x -> x==1, Int.(ctbSet[1][1]))
-    selectedRoute = mod.(selected,5)
+    selectedRoute = mod.(selected,5) .+ 1
+    println("flight number: ",num_flights)
     return selectedRoute
 end
 
