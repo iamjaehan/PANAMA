@@ -33,11 +33,11 @@ while ~isConverged
     selections(i) = j_star;                 % Update selection
     
     % --- Display formatted output ---
-    fprintf('  %2d   |   %d    | ', step, i);
-    fprintf('[%s] | ', strjoin(arrayfun(@(x) sprintf('%d', x), O(i,:), 'UniformOutput', false), ' '));
-    fprintf('[%s] | ', strjoin(arrayfun(@(x) sprintf('%d', x), P(i,:), 'UniformOutput', false), ' '));
-    fprintf('[%s] | ', strjoin(arrayfun(@(x) sprintf('%5.1f', x), J, 'UniformOutput', false), ' '));
-    fprintf('[%s]\n', strjoin(arrayfun(@(x) sprintf('%d', x), selections(~isnan(selections)), 'UniformOutput', false), ' '));
+    % fprintf('  %2d   |   %d    | ', step, i);
+    % fprintf('[%s] | ', strjoin(arrayfun(@(x) sprintf('%d', x), O(i,:), 'UniformOutput', false), ' '));
+    % fprintf('[%s] | ', strjoin(arrayfun(@(x) sprintf('%d', x), P(i,:), 'UniformOutput', false), ' '));
+    % fprintf('[%s] | ', strjoin(arrayfun(@(x) sprintf('%5.1f', x), J, 'UniformOutput', false), ' '));
+    % fprintf('[%s]\n', strjoin(arrayfun(@(x) sprintf('%d', x), selections(~isnan(selections)), 'UniformOutput', false), ' '));
     
     % --- Cycle detection ---
     key = [reshape(O - P, 1, []), i];        % Flattened key
