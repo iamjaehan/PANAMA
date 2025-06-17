@@ -4,17 +4,9 @@ airlineList = ["AA","UA","OZ","JB","SW"];
 TOS_set = cell(n,1);
 
 for i = 1:n
-    % origin = randi(5000);
-    % destination = randi(5000);
-    % while origin == destination
-    %     destination = randi(5000);
-    % end
     origin = randi(5000);
-    while ~((G.Nodes(origin,:).Lon < -93 && G.Nodes(origin,:).Lon > -100) && (G.Nodes(origin,:).Lat < 40 && G.Nodes(origin,:).Lat > 28))
-        origin = randi(5000);
-    end
     destination = randi(5000);
-    while ~((G.Nodes(destination,:).Lon < -72 && G.Nodes(destination,:).Lon > -80) && (G.Nodes(destination,:).Lat < 44 && G.Nodes(destination,:).Lat > 36)) || destination == origin
+    while origin == destination
         destination = randi(5000);
     end
 
@@ -23,6 +15,14 @@ for i = 1:n
         if ~isempty(TOS)
             break;
         else
+            origin = randi(5000);
+            while ~((G.Nodes(origin,:).Lat < -93 && G.Nodes(origin,:).Lat > -100) || (G.Nodes(origin,:).Lat < -73 && G.Nodes(origin,:).Lat > -79))
+                origin = randi(5000);
+            end
+            while ~((G.Nodes(origin,:).Lat < -93 && G.Nodes(origin,:).Lat > -100) || (G.Nodes(origin,:).Lat < -73 && G.Nodes(origin,:).Lat > -79))
+                origin = randi(5000);
+            end
+            destination = randi(5000);
             while origin == destination
                 destination = randi(5000);
             end

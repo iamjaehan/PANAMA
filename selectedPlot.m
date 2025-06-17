@@ -15,7 +15,7 @@ geoplot(node_coords(:,1), node_coords(:,2), 'b.', 'MarkerSize', 3); % Graph node
 hold on
 
 % Plot multiple paths with different colors
-selectIdx = 1;
+selectIdx = 2;
 selection = selected{selectIdx};
 for k = 1:10
     localSelection = selection(k);
@@ -33,7 +33,7 @@ fir_names = fieldnames(fir);
 fir_num = length(fir_names);
 for i = 1:fir_num
     local_coord = fir.(fir_names{i});
-    if i == 2 || i == 8 || i == 20
+    if i == 2 || i == 8 || i == 20 %12 3 13
         geoplot(local_coord(:,2),local_coord(:,1),':','LineWidth',2,'Color',[1 0 0 0.9])
     else
         geoplot(local_coord(:,2),local_coord(:,1),':','LineWidth',2,'Color',[0 0 0 0.5])

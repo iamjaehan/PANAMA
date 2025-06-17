@@ -249,8 +249,8 @@ function cost_function(x)
             cost += w_airlines[flight_to_airline[i]] * tos_list[i].trajectory_options[j].relative_trajectory_cost * x[5*(i-1)+j]
         end
     end
-    # cost += w_FAB * FAB_cost(x, tos_list,fabIdx,param)
-    cost += w_FAB * FAB_cost_2(x, tos_list,fabIdx,param)
+    cost += w_FAB * FAB_cost(x, tos_list,fabIdx,param)
+    # cost += w_FAB * FAB_cost_2(x, tos_list,fabIdx,param)
 
     return cost
 end
@@ -370,9 +370,9 @@ function mat_ctb_generation(fabIdx)
     return selectedRoute
 end
 
-function get_all_ctbs(num)
+function get_all_ctbs(idxs)
     selectedRoute = Vector{Any}(undef,0)
-    for i = 1:num
+    for i = idxs
         temp = mat_ctb_generation(i)
         push!(selectedRoute, temp)
     end
