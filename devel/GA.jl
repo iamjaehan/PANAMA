@@ -3,44 +3,57 @@ using Random, Distributions
 
 # Define the MI-LXPM algorithm
 function MI_LXPM(cost_function, bounds, num_generations, population_size, tournament_size, crossover_prob, mutation_prob, alpha, beta)
-    num_variables = length(bounds)  # Number of decision variables
-    
+    num_variables = length(bounds)
+
     # Initialize population (real-coded values within bounds)
-    population = [[rand(bounds[j][1]:0.01:bounds[j][2]) for j in 1:length(bounds)] for _ in 1:population_size]
-    
+    population = [[rand(bounds[j][1]:0.01:bounds[j][2]) for j in 1:num_variables] for _ in 1:population_size]
+
     for generation in 1:num_generations
-        # fitness = [cost_function(round.(ind)) for ind in population]  # Evaluate fitness with integer constraints
-        fitness = Vector{Float64}(undef, length(population))  # Pre-allocate array
+        fitness = Vector{Float64}(undef, length(population))
         Threads.@threads for i in eachindex(population)
-            fitness[i] = cost_function(round.(population[i]))
+            x = round.(population[i])
+            enforce_onehot!(x)
+            fitness[i] = cost_function(x)
         end
 
-        
         # Apply tournament selection
         selected_parents = tournament_selection(population, fitness, tournament_size)
-        
+
         # Generate offspring
         offspring = laplace_crossover(selected_parents, crossover_prob, alpha, bounds)
         offspring = power_mutation(offspring, mutation_prob, beta, bounds)
-        
-        # Enforce integer constraints (truncation step)
-        offspring = [round.(ind) for ind in offspring]
-        
+
+        # Enforce integer constraints + one-hot structure
+        for i in eachindex(offspring)
+            offspring[i] = round.(offspring[i])
+            enforce_onehot!(offspring[i])
+        end
+
         # Evaluate new population
-        # offspring_fitness = [cost_function(ind) for ind in offspring]
         offspring_fitness = Vector{Float64}(undef, length(offspring))
         Threads.@threads for i in eachindex(offspring)
             offspring_fitness[i] = cost_function(offspring[i])
         end
-        
+
         # Select the best individuals for the next generation
         population = survival_selection(population, fitness, offspring, offspring_fitness)
         println(generation)
     end
-    
+
     # Return the best solution found
     best_idx = argmin([cost_function(ind) for ind in population])
-    return round.(population[best_idx]), cost_function(round.(population[best_idx]))
+    x_best = round.(population[best_idx])
+    enforce_onehot!(x_best)
+    return x_best, cost_function(x_best)
+end
+
+function enforce_onehot!(x)
+    for i in 0:(length(x) ÷ 5 - 1)
+        group = x[5*i + 1 : 5*(i + 1)]
+        idx = argmax(group)
+        x[5*i + 1 : 5*(i + 1)] .= 0
+        x[5*i + idx] = 1
+    end
 end
 
 # Tournament Selection

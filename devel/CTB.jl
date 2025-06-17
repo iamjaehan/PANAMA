@@ -339,7 +339,7 @@ function mat_parser(matTOS)
     return flight
 end
 
-function mat_ctb_generation()
+function mat_ctb_generation(fabIdx)
     flightSet = Vector{ParsedFlight}(undef,0)
 
     # Load mat files
@@ -360,15 +360,22 @@ function mat_ctb_generation()
     end
 
     # Generate CTBs
-    fabIdx = 1
     param = GetParam()
     @time begin
     ctbSet = generateCtbSet(flightSet, fabIdx, param)
     end
     
     selected = findall(x -> x==1, Int.(ctbSet[1][1]))
-    selectedRoute = mod.(selected,5) .+ 1
-    println("flight number: ",num_flights)
+    selectedRoute = mod.(selected,5)
+    return selectedRoute
+end
+
+function get_all_ctbs(num)
+    selectedRoute = Vector{Any}(undef,0)
+    for i = 1:num
+        temp = mat_ctb_generation(i)
+        push!(selectedRoute, temp)
+    end
     return selectedRoute
 end
 
