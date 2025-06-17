@@ -162,42 +162,61 @@ function FAB_cost(x, tos_list, fabIdx, param)
     return globalCost
 end
 
-function solveCtb2(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
-model = Model(Gurobi.Optimizer)
-set_silent(model)
+function FAB_cost_2(x, tos_list, fabIdx, param)
+    r = param.conflictRadius
+    d = param.sampleRate
+    wptPos = param.wptPos
+    fabInfo = param.fabInfo
+    num_flights = length(tos_list)
 
-num_flights = length(tos_list)
+    tosIdx = zeros(Int, num_flights)
+    startTime = Array{DateTime}(undef, num_flights)
 
-# Identify unique airlines by extracting first two letters of flight_id
-airline_codes = unique(first(tos_list[i].flight_id, 2) for i in 1:num_flights)
-num_airlines = length(airline_codes)
+    for i in 1:num_flights
+        localVar = x[5*(i-1)+1 : 5*i]
+        tosIdx[i] = findmax(localVar)[2]
+        startTime[i] = tos_list[i].trajectory_options[tosIdx[i]].valid_start_time
+    end
 
-# Map flights to their respective airline index
-flight_to_airline = Dict(i => findfirst(==(first(tos_list[i].flight_id, 2)), airline_codes) 
-               for i in 1:num_flights)
+    globalStartTime = minimum(startTime)
+    globalEndTime = maximum([startTime[i] + Minute(d * 500) for i in 1:num_flights])
+    timeline = collect(globalStartTime:Minute(d):globalEndTime)
 
-# Dictionary for valid options per flight
-valid_options = Dict(i => 1:length(tos_list[i].trajectory_options) for i in 1:num_flights)
+    # FAB boundary points for isinside test
+    fab_polygon = [Luxor.Point(p[1], p[2]) for p in eachrow(collect(fabInfo)[fabIdx][2][:,1:2])]
 
-# Decision variables: x[i, j] is binary for valid options
-@variable(model, x[i=1:num_flights, j in valid_options[i]], Bin)
+    # Directly compute occupancy per time step without storing
+    occupancy = Dict{DateTime, Int}()
 
-# Weight variables for airlines and FAB
-w_airlines = weights[1:num_airlines]
-w_FAB = weights[num_airlines+1]
+    for i in 1:num_flights
+        waypoints = tos_list[i].trajectory_options[tosIdx[i]].route
+        waypoints = parse.(Int, split(waypoints[2:end-1]))
+        dep_time = startTime[i]
+        start_idx = findfirst(t -> t >= dep_time, timeline)
+        time = timeline[start_idx]
 
-# Objective function: Sum of airline and FAB costs
-@objective(model, Min, 
-    sum(w_airlines[flight_to_airline[i]] * tos_list[i].trajectory_options[j].relative_trajectory_cost * x[i, j] 
-        for i in 1:num_flights, j in valid_options[i]) + w_FAB * FAB_cost(x, tos_list,fabIdx,param))
+        for j = 1:length(waypoints)-1
+            wp1 = wptPos[waypoints[j], :]
+            wp2 = wptPos[waypoints[j+1], :]
+            dist = haversine(wp1[1], wp1[2], wp2[1], wp2[2])
+            flight_time = dist / param.speed * 60
+            num_samples = ceil(Int, flight_time / d)
 
-# Constraint: Each flight selects exactly one option
-@constraint(model, [i=1:num_flights], sum(x[i, j] for j in valid_options[i]) == 1)
+            for k in 0:num_samples
+                alpha = k / num_samples
+                lat = (1 - alpha) * wp1[1] + alpha * wp2[1]
+                lon = (1 - alpha) * wp1[2] + alpha * wp2[2]
+                if time ∈ timeline && isinside(Luxor.Point(lon, lat), fab_polygon)
+                    occupancy[time] = get(occupancy, time, 0) + 1
+                end
+                time += Minute(d)
+            end
+        end
+    end
 
-optimize!(model)
-
-return value.(x)
+    return sum(values(occupancy))
 end
+
 
 function SetMiscData(tos_list, fabIdx, param, w, flight_to_airline, valid_options, num_flights)
     global MiscTosList = tos_list
@@ -230,7 +249,8 @@ function cost_function(x)
             cost += w_airlines[flight_to_airline[i]] * tos_list[i].trajectory_options[j].relative_trajectory_cost * x[5*(i-1)+j]
         end
     end
-    cost += w_FAB * FAB_cost(x, tos_list,fabIdx,param)
+    # cost += w_FAB * FAB_cost(x, tos_list,fabIdx,param)
+    cost += w_FAB * FAB_cost_2(x, tos_list,fabIdx,param)
 
     return cost
 end
