@@ -44,6 +44,9 @@ for i = 1:n
     flightNum = randsample(airlineList,1) + num2str(randsample(0:9,1)) + num2str(randsample(0:9,1)) ...
         + num2str(randsample(0:9,1)) + num2str(randsample(0:9,1));
     depTime = [2025 2 24 randsample(8:9,1) randsample(0:59,1)];
+    depTime = datetime(depTime(1), depTime(2), depTime(3), ...
+               depTime(4), depTime(5), 0);
+    depTime = posixtime(depTime);
     altitude = randsample(250:10:360,1);
 
     % Add data
@@ -55,8 +58,7 @@ end
 
 for i = 1:n
     TOS = TOS_set{i};
-    dep = datetime(TOS.depTime(1), TOS.depTime(2), TOS.depTime(3), ...
-               TOS.depTime(4), TOS.depTime(5), 0);
+    dep = TOS.depTime;
     options = TOS.options;
     firTime = cell(length(options), 1);
 
@@ -64,7 +66,7 @@ for i = 1:n
         wpts = options{j};
         firLog = {}; % 결과 저장용
         
-        curTime = 0; % 출발시간 offset (min 단위)
+        curTime = dep; % 출발시간 offset (s 단위)
         prevFIR = "";
         inTime = NaN;
 
