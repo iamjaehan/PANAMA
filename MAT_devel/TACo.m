@@ -16,8 +16,8 @@ recordedStates = {};       % For cycle detection
 agentOrder = 1:n;          % Fixed sequential agent order
 step = 0;                  % Step counter
 
-fprintf(' Step | Agent |   O   |   P   |     J (profit matrix)     | Selections\n');
-fprintf('--------------------------------------------------------------------------\n');
+% fprintf(' Step | Agent |   O   |   P   |     J (profit matrix)     | Selections\n');
+% fprintf('--------------------------------------------------------------------------\n');
 
 while ~isConverged
     step = step + 1;
