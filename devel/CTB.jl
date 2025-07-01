@@ -187,8 +187,8 @@ end
 
 function cost_function(x)
     misc = GetMiscData()
-    w_airlines = misc.MiscWeights[1]
-    w_FAB = misc.MiscWeights[2]
+    w_airlines = misc.MiscWeights[1] * 0
+    w_FAB = misc.MiscWeights[2] * 1
     flight_to_airline = misc.MiscFlightToAirline
     valid_options = misc.MiscValidOptions
     tos_list = misc.MiscTosList
@@ -343,8 +343,11 @@ function get_all_ctbs(idxs)
         @time begin
         ctbSet = generateCtbSet(flightSet, i, param)
         end
-        selected = findall(x -> x==1, Int.(ctbSet[1][1]))
-        temp = mod.(selected,5)
+        # selected = findall(x -> x==1, Int.(ctbSet[1][1]))
+        # temp = mod.(selected,5)
+        selected = findall(x -> x == 1, Int.(ctbSet[1][1]))
+        tos_per_flight = 5
+        temp = [mod(i - 1, tos_per_flight) + 1 for i in selected]
         push!(selectedRoute, temp)
     end
     return selectedRoute
