@@ -1,4 +1,4 @@
-n = 30; % Number of flights
+n = 100; % Number of flights
 d = 5; % min - time resolution
 fStep = 500; % final step length
 tf = fStep * d; % min - final time

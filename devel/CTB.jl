@@ -237,7 +237,7 @@ function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabI
     end
 
     # Solve!
-    best_solution, best_cost = MI_LXPM(cost_function, bounds, 10, 20, 3, 0.8, 0.1, 0.3, 2.0)
+    best_solution, best_cost = MI_LXPM(cost_function, bounds, 20, 50, 7, 0.8, 0.1, 0.3, 2.0)
     
     return best_solution, best_cost
     end
