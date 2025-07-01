@@ -322,8 +322,7 @@ function mat_parser(matTOS)
     flightNum = matTOS["flightNum"]
     origin = string(matTOS["options"][1][1])
     destination = string(matTOS["options"][1][end])
-    timeArray = Int.(matTOS["depTime"])
-    earliest_departure = DateTime(timeArray[1], timeArray[2], timeArray[3], timeArray[4], timeArray[5])
+    earliest_departure = Int.(matTOS["depTime"])
     flight = Flight(flightNum,origin,destination,earliest_departure)
 
     num_options = length(matTOS["options"])
@@ -355,25 +354,44 @@ function mat_ctb_generation(fabIdx)
 
     # Parse TOS set
     for i = 1:num_flights
-        parsedFlight = parse_flight_info(mat_parser(TOS_set[i]))
-        push!(flightSet,parsedFlight)
+        matTOS = TOS_set[i]
+        flight = mat_parser(matTOS)
+
+        firTime_all = matTOS["firTime"]
+        timeRef = matTOS["depTime"]
+
+        for j = 1:length(flight.trajectory_options)
+            firLog = firTime_all[j]
+            firTime_s = Vector{Tuple{String, Int64, Int64}}()
+
+            for r = 1:size(firLog, 1)
+                firName = string(firLog[r,1])
+                t_in = Int64(round(firLog[r,2]))
+                t_out = Int64(round(firLog[r,3]))
+                push!(firTime_s, (firName, t_in, t_out))
+            end
+
+            flight.trajectory_options[j].firTime_s = firTime_s
+            flight.trajectory_options[j].timeRef = timeRef
+        end
+
+        parsedFlight = parse_flight_info(flight)
+        push!(flightSet, parsedFlight)
     end
 
-    # Generate CTBs
-    param = GetParam()
-    @time begin
-    ctbSet = generateCtbSet(flightSet, fabIdx, param)
-    end
-    
-    selected = findall(x -> x==1, Int.(ctbSet[1][1]))
-    selectedRoute = mod.(selected,5)
-    return selectedRoute
+    return flightSet
 end
 
 function get_all_ctbs(idxs)
     selectedRoute = Vector{Any}(undef,0)
     for i = idxs
-        temp = mat_ctb_generation(i)
+        flightSet = mat_ctb_generation(i)
+        param = GetParam()
+        @time begin
+        ctbSet = generateCtbSet(flightSet, i, param)
+        end
+        selected = findall(x -> x==1, Int.(ctbSet[1][1]))
+        temp = mod.(selected,5)
         push!(selectedRoute, temp)
     end
     return selectedRoute
