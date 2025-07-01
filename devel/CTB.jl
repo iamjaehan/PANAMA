@@ -18,9 +18,10 @@ function GetParam()
     wptPos = wptPos["test"]
     fabInfo = read(matopen("./FIR_coord.mat"))
     fabInfo = fabInfo["data"]
+    fabKeys = collect(keys(fabInfo))
 
     conflictRadius = conflictRadius * nm2km
-    return (; conflictRadius, speed, sampleRate, wptPos, fabInfo)
+    return (; conflictRadius, speed, sampleRate, wptPos, fabInfo, fabKeys)
 end
 
 function haversine(lat1, lon1, lat2, lon2)
@@ -53,35 +54,47 @@ function local_FAB_cost(X,V)
     return H
 end
 
+function is_in_fir(flight::ParsedFlight, option_idx::Int, fabName::String, t::Int64)
+    fir_records = flight.trajectory_options[option_idx].firTime_s
+    timeRef = flight.trajectory_options[option_idx].timeRef
+    rel_min = div(t - timeRef, 60)  # 초 단위로 들어오므로 분 단위로 변환
+
+    for (name, t_in, t_out) in fir_records
+        if name == fabName && t_in ≤ rel_min ≤ t_out
+            return true
+        end
+    end
+    return false
+end
+
 function FAB_cost(x, tos_list, fabIdx, param)
     r = param.conflictRadius  # Conflict radius (15nm)
     v = param.speed  # Aircraft speed (km/h)
     d = param.sampleRate  # Sampling rate (min)
     wptPos = param.wptPos  # Waypoint positions (lat, lon)
-    fabInfo = param.fabInfo  # FIR/ARTCC boundaries
+    fabName = param.fabKeys[fabIdx]
     num_flights = length(tos_list)
 
     tosIdx = zeros(Int, num_flights)  # Selected trajectory indices
-    startTime = Array{DateTime}(undef, num_flights)  # Start time for each flight
+    startTime = Array{Int64}(undef, num_flights)  # Start time for each flight
 
     # Step 1: Identify selected TOS for each flight
     for i = 1:num_flights
         localVar = x[5*(i-1)+1:5*i] # For GA
-        # localVar = x[i,1:5] # For Gurobi
         tosIdx[i] = findmax(localVar)[2]  # Extract selected TOS index
         startTime[i] = tos_list[i].trajectory_options[tosIdx[i]].valid_start_time  # Store start time
     end
 
     # Step 2: Synchronize Start Time & Define Unified Timeline
     globalStartTime = minimum(startTime)  # Earliest start time
-    globalEndTime = maximum([startTime[i] + Minute(d * 500) for i in 1:num_flights])  # Approximate max time
-    timeline = collect(globalStartTime:Minute(d):globalEndTime)  # Time grid
+    globalEndTime = maximum([startTime[i] + d * 500 * 60 for i in 1:num_flights])  # Approximate max time
+    timeline = collect(globalStartTime:d*60:globalEndTime)  # Time grid
 
     # Step 3: Generate & Filter Spatiotemporal Trajectory Samples
-    traj_samples = Dict{Int, Dict{DateTime, Tuple{Float64, Float64, Float64}}}()  # (time => (lat, lon, heading))
+    traj_samples = Dict{Int, Dict{Int64, Tuple{Float64, Float64, Float64}}}()  # (time => (lat, lon, heading))
 
     for i = 1:num_flights
-        traj_samples[i] = Dict{DateTime, Tuple{Float64, Float64, Float64}}()
+        traj_samples[i] = Dict{Int64, Tuple{Float64, Float64, Float64}}()
         
         # Get trajectory waypoints for selected TOS
         waypoints = tos_list[i].trajectory_options[tosIdx[i]].route
@@ -107,14 +120,10 @@ function FAB_cost(x, tos_list, fabIdx, param)
                 alpha = k / num_samples
                 lat = (1 - alpha) * wp1[1] + alpha * wp2[1]
                 lon = (1 - alpha) * wp1[2] + alpha * wp2[2]
-                if time ∈ timeline  # Ensure alignment with timeline
-                    # **Step 3.1: Filter out points outside the FAB**
-                    points = [Luxor.Point(p[1], p[2]) for p in eachrow(collect(fabInfo)[fabIdx][2][:,1:2])]
-                    if isinside(Luxor.Point(lon, lat), points)
-                        traj_samples[i][time] = (lat, lon, heading)
-                    end
+                if time ∈ timeline && is_in_fir(tos_list[i], tosIdx[i], fabName, time)
+                    traj_samples[i][time] = (lat, lon, heading)
                 end
-                time += Minute(d)  # Increment time by d minutes
+                time += d * 60  # Increment time by d minutes
             end
         end
     end
@@ -161,62 +170,6 @@ function FAB_cost(x, tos_list, fabIdx, param)
 
     return globalCost
 end
-
-function FAB_cost_2(x, tos_list, fabIdx, param)
-    r = param.conflictRadius
-    d = param.sampleRate
-    wptPos = param.wptPos
-    fabInfo = param.fabInfo
-    num_flights = length(tos_list)
-
-    tosIdx = zeros(Int, num_flights)
-    startTime = Array{DateTime}(undef, num_flights)
-
-    for i in 1:num_flights
-        localVar = x[5*(i-1)+1 : 5*i]
-        tosIdx[i] = findmax(localVar)[2]
-        startTime[i] = tos_list[i].trajectory_options[tosIdx[i]].valid_start_time
-    end
-
-    globalStartTime = minimum(startTime)
-    globalEndTime = maximum([startTime[i] + Minute(d * 500) for i in 1:num_flights])
-    timeline = collect(globalStartTime:Minute(d):globalEndTime)
-
-    # FAB boundary points for isinside test
-    fab_polygon = [Luxor.Point(p[1], p[2]) for p in eachrow(collect(fabInfo)[fabIdx][2][:,1:2])]
-
-    # Directly compute occupancy per time step without storing
-    occupancy = Dict{DateTime, Int}()
-
-    for i in 1:num_flights
-        waypoints = tos_list[i].trajectory_options[tosIdx[i]].route
-        waypoints = parse.(Int, split(waypoints[2:end-1]))
-        dep_time = startTime[i]
-        start_idx = findfirst(t -> t >= dep_time, timeline)
-        time = timeline[start_idx]
-
-        for j = 1:length(waypoints)-1
-            wp1 = wptPos[waypoints[j], :]
-            wp2 = wptPos[waypoints[j+1], :]
-            dist = haversine(wp1[1], wp1[2], wp2[1], wp2[2])
-            flight_time = dist / param.speed * 60
-            num_samples = ceil(Int, flight_time / d)
-
-            for k in 0:num_samples
-                alpha = k / num_samples
-                lat = (1 - alpha) * wp1[1] + alpha * wp2[1]
-                lon = (1 - alpha) * wp1[2] + alpha * wp2[2]
-                if time ∈ timeline && isinside(Luxor.Point(lon, lat), fab_polygon)
-                    occupancy[time] = get(occupancy, time, 0) + 1
-                end
-                time += Minute(d)
-            end
-        end
-    end
-
-    return sum(values(occupancy))
-end
-
 
 function SetMiscData(tos_list, fabIdx, param, w, flight_to_airline, valid_options, num_flights)
     global MiscTosList = tos_list
