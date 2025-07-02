@@ -56,11 +56,8 @@ end
 
 function is_in_fir(flight::ParsedFlight, option_idx::Int, fabName::String, t::Int64)
     fir_records = flight.trajectory_options[option_idx].firTime_s
-    timeRef = flight.trajectory_options[option_idx].timeRef
-    rel_min = div(t - timeRef, 60)  # 초 단위로 들어오므로 분 단위로 변환
-
     for (name, t_in, t_out) in fir_records
-        if name == fabName && t_in ≤ rel_min ≤ t_out
+        if name == fabName && t_in ≤ t ≤ t_out
             return true
         end
     end
@@ -187,8 +184,9 @@ end
 
 function cost_function(x)
     misc = GetMiscData()
-    w_airlines = misc.MiscWeights[1] * 0
-    w_FAB = misc.MiscWeights[2] * 1
+    w_airlines = misc.MiscWeights[1] * 0.2
+    # w_FAB = misc.MiscWeights[2] * 1
+    w_FAB = 10000
     flight_to_airline = misc.MiscFlightToAirline
     valid_options = misc.MiscValidOptions
     tos_list = misc.MiscTosList
@@ -240,7 +238,7 @@ function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabI
     best_solution, best_cost = MI_LXPM(cost_function, bounds, 20, 50, 7, 0.8, 0.1, 0.3, 2.0)
     
     return best_solution, best_cost
-    end
+end
 
 function generateCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
     # Generate CTBs

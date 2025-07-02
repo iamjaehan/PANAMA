@@ -1,4 +1,4 @@
-n = 100; % Number of flights
+n = 30; % Number of flights
 d = 5; % min - time resolution
 fStep = 500; % final step length
 tf = fStep * d; % min - final time
@@ -15,11 +15,6 @@ fir_names = fieldnames(fir);
 fir_num = length(fir_names);
 
 for i = 1:n
-    % origin = randi(5000);
-    % destination = randi(5000);
-    % while origin == destination
-    %     destination = randi(5000);
-    % end
     origin = randi(5000);
     while ~((G.Nodes(origin,:).Lon < -93 && G.Nodes(origin,:).Lon > -100) && (G.Nodes(origin,:).Lat < 40 && G.Nodes(origin,:).Lat > 28))
         origin = randi(5000);
