@@ -168,7 +168,7 @@ function FAB_cost(x, tos_list, fabIdx, param)
     return globalCost
 end
 
-function SetMiscData(tos_list, fabIdx, param, w, flight_to_airline, valid_options, num_flights)
+function SetMiscData(tos_list, fabIdx, param, w, flight_to_airline, valid_options, num_flights, idxs)
     global MiscTosList = tos_list
     global MiscFabIdx = fabIdx
     global MiscParam = param
@@ -176,21 +176,32 @@ function SetMiscData(tos_list, fabIdx, param, w, flight_to_airline, valid_option
     global MiscFlightToAirline = flight_to_airline
     global MiscValidOptions = valid_options
     global MiscNumFlights = num_flights
+    global MiscTotIdxs = idxs
 end
 
 function GetMiscData()
-    return (; MiscTosList, MiscFabIdx, MiscParam, MiscWeights, MiscFlightToAirline, MiscValidOptions, MiscNumFlights)
+    return (; MiscTosList, MiscFabIdx, MiscParam, MiscWeights, MiscFlightToAirline, MiscValidOptions, MiscNumFlights, MiscTotIdxs)
 end
 
 function cost_function(x)
     misc = GetMiscData()
-    w_airlines = misc.MiscWeights[1] * 0.2
-    # w_FAB = misc.MiscWeights[2] * 1
-    w_FAB = 10000
+    idxs = misc.MiscTotIdxs
+    fabIdx = misc.MiscFabIdx
+    cost = computeCost(x, fabIdx)
+
+    if fabIdx != idxs[2]
+        cost += computeCost(x,idxs[2]) * 0
+    end
+    return cost
+end
+
+function computeCost(x, fabIdx)
+    misc = GetMiscData()
+    w_airlines = misc.MiscWeights[1] * 0.0
+    w_FAB = misc.MiscWeights[2] * 10000
     flight_to_airline = misc.MiscFlightToAirline
     valid_options = misc.MiscValidOptions
     tos_list = misc.MiscTosList
-    fabIdx = misc.MiscFabIdx
     param = misc.MiscParam
     num_flights = misc.MiscNumFlights
 
@@ -201,12 +212,10 @@ function cost_function(x)
         end
     end
     cost += w_FAB * FAB_cost(x, tos_list,fabIdx,param)
-    # cost += w_FAB * FAB_cost_2(x, tos_list,fabIdx,param)
-
     return cost
 end
 
-function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
+function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param, idxs)
     num_flights = length(tos_list)
     
     # Identify unique airlines by extracting first two letters of flight_id
@@ -226,7 +235,7 @@ function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabI
     w = [w_airlines, w_FAB]
 
     # Transfer data for cost function computation
-    SetMiscData(tos_list, fabIdx, param, w, flight_to_airline, valid_options, num_flights)
+    SetMiscData(tos_list, fabIdx, param, w, flight_to_airline, valid_options, num_flights, idxs)
 
     # Set bound
     bounds = []
@@ -240,14 +249,14 @@ function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabI
     return best_solution, best_cost
 end
 
-function generateCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param)
+function generateCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param, idxs)
     # Generate CTBs
     # ctb = solveCtb2(tos_list, weights, fabIdx, param)
-    ctb = solveCtb(tos_list, weights, fabIdx, param)
+    ctb = solveCtb(tos_list, weights, fabIdx, param, idxs)
     return ctb
 end
 
-function generateCtbSet(tos_list::Vector{ParsedFlight}, fabIdx, param)
+function generateCtbSet(tos_list::Vector{ParsedFlight}, fabIdx, param, idxs)
     ctbSet = []
     num_flights = length(tos_list)
 
@@ -261,7 +270,7 @@ function generateCtbSet(tos_list::Vector{ParsedFlight}, fabIdx, param)
         weights = rand(num_airlines + 1)
         weights = weights / sum(weights)
         # Acquire a CTB
-        ctb = generateCtb(tos_list, weights, fabIdx, param)
+        ctb = generateCtb(tos_list, weights, fabIdx, param, idxs)
         push!(ctbSet, ctb)
     end
 
@@ -335,20 +344,47 @@ end
 
 function get_all_ctbs(idxs)
     selectedRoute = Vector{Any}(undef,0)
+    rawRoute = Vector{Any}(undef,0)
     for i = idxs
         flightSet = mat_ctb_generation(i)
         param = GetParam()
         @time begin
-        ctbSet = generateCtbSet(flightSet, i, param)
+        ctbSet = generateCtbSet(flightSet, i, param, idxs)
         end
         # selected = findall(x -> x==1, Int.(ctbSet[1][1]))
         # temp = mod.(selected,5)
+        raw = Int.(ctbSet[1][1])
         selected = findall(x -> x == 1, Int.(ctbSet[1][1]))
         tos_per_flight = 5
         temp = [mod(i - 1, tos_per_flight) + 1 for i in selected]
         push!(selectedRoute, temp)
+        push!(rawRoute,raw)
     end
-    return selectedRoute
+    return (; selectedRoute, rawRoute)
+end
+
+function exportCTB(result, idxs)
+    param = GetParam()
+    fabNames = param.fabKeys
+    raws = result.rawRoute
+    n = length(result.selectedRoute)
+    scores = Array{Any}(undef,n,n)
+    
+    names = fabNames[idxs]
+    selectedRoute = result.selectedRoute
+    for i = 1:n
+        for j = 1:n
+            localIdx = idxs[i]
+            scores[i, j] = computeCost(raws[j],localIdx)
+        end
+    end
+
+    matwrite("negoTable.mat", Dict(
+        "names" => names,
+        "selectedRoute" => selectedRoute,
+        "scores" => scores
+    ); version="v7.4")
+
 end
 
 end

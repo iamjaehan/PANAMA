@@ -1,7 +1,7 @@
 selected = load("[0]selected.mat");
 tos = load("TOS.mat");
 
-selected = selected.selected;
+selected = test2;
 tos = tos.TOS_set;
 
 G = load("US_waypoint_graph.mat");
@@ -15,7 +15,7 @@ geoplot(node_coords(:,1), node_coords(:,2), 'b.', 'MarkerSize', 3); % Graph node
 hold on
 
 % Plot multiple paths with different colors
-selectIdx = 2;
+selectIdx = 3;
 selection = selected{selectIdx};
 for k = 1:10
     localSelection = selection(k);
