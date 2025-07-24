@@ -183,14 +183,18 @@ function GetMiscData()
     return (; MiscTosList, MiscFabIdx, MiscParam, MiscWeights, MiscFlightToAirline, MiscValidOptions, MiscNumFlights, MiscTotIdxs)
 end
 
-function cost_function(x)
+function cost_function(x, coordFactor)
     misc = GetMiscData()
     idxs = misc.MiscTotIdxs
     fabIdx = misc.MiscFabIdx
     cost = computeCost(x, fabIdx)
-
-    if fabIdx != idxs[2]
-        cost += computeCost(x,idxs[2]) * 0
+    # if fabIdx != idxs[2]
+    #     cost += computeCost(x,idxs[2]) * 10
+    # end
+    for i = 1:length(idxs)
+        if fabIdx != idxs[i] && coordFactor[i] > 0
+            cost += computeCost(x,idxs[i]) * coordFactor[i]
+        end
     end
     return cost
 end
@@ -215,7 +219,7 @@ function computeCost(x, fabIdx)
     return cost
 end
 
-function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param, idxs)
+function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param, idxs, coordFactor)
     num_flights = length(tos_list)
     
     # Identify unique airlines by extracting first two letters of flight_id
@@ -244,19 +248,19 @@ function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabI
     end
 
     # Solve!
-    best_solution, best_cost = MI_LXPM(cost_function, bounds, 20, 50, 7, 0.8, 0.1, 0.3, 2.0)
+    best_solution, best_cost = MI_LXPM(cost_function, bounds, 20, 50, 7, 0.8, 0.1, 0.3, 2.0, coordFactor)
     
     return best_solution, best_cost
 end
 
-function generateCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param, idxs)
+function generateCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param, idxs, coordFactor)
     # Generate CTBs
     # ctb = solveCtb2(tos_list, weights, fabIdx, param)
-    ctb = solveCtb(tos_list, weights, fabIdx, param, idxs)
+    ctb = solveCtb(tos_list, weights, fabIdx, param, idxs, coordFactor)
     return ctb
 end
 
-function generateCtbSet(tos_list::Vector{ParsedFlight}, fabIdx, param, idxs)
+function generateCtbSet(tos_list::Vector{ParsedFlight}, fabIdx, param, idxs, coordFactor)
     ctbSet = []
     num_flights = length(tos_list)
 
@@ -270,7 +274,7 @@ function generateCtbSet(tos_list::Vector{ParsedFlight}, fabIdx, param, idxs)
         weights = rand(num_airlines + 1)
         weights = weights / sum(weights)
         # Acquire a CTB
-        ctb = generateCtb(tos_list, weights, fabIdx, param, idxs)
+        ctb = generateCtb(tos_list, weights, fabIdx, param, idxs, coordFactor)
         push!(ctbSet, ctb)
     end
 
@@ -342,17 +346,16 @@ function mat_ctb_generation(fabIdx)
     return flightSet
 end
 
-function get_all_ctbs(idxs)
+function get_all_ctbs(idxs, coordFactor)
     selectedRoute = Vector{Any}(undef,0)
     rawRoute = Vector{Any}(undef,0)
     for i = idxs
+        println("Generating CTB for sector $i")
         flightSet = mat_ctb_generation(i)
         param = GetParam()
-        @time begin
-        ctbSet = generateCtbSet(flightSet, i, param, idxs)
-        end
-        # selected = findall(x -> x==1, Int.(ctbSet[1][1]))
-        # temp = mod.(selected,5)
+        # @time begin
+        ctbSet = generateCtbSet(flightSet, i, param, idxs, coordFactor)
+        # end
         raw = Int.(ctbSet[1][1])
         selected = findall(x -> x == 1, Int.(ctbSet[1][1]))
         tos_per_flight = 5
@@ -384,6 +387,8 @@ function exportCTB(result, idxs)
         "selectedRoute" => selectedRoute,
         "scores" => scores
     ); version="v7.4")
+
+    return (; scores, selectedRoute)
 
 end
 

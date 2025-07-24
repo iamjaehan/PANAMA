@@ -5,6 +5,9 @@ function [outcome, trade, profit] = TACo(C, b, d0, gamma, epsilon)
 %   d0     : initial trading unit (scalar)
 %   gamma  : trading unit reduction factor (0 < gamma < 1)
 %   epsilon: convergence threshold
+%   U: trade limit
+
+U = 100;
 
 [n, m] = size(C);
 O = zeros(n, m);           % Offer matrix

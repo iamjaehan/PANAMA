@@ -2,7 +2,7 @@ module GA
 using Random, Distributions
 
 # Define the MI-LXPM algorithm
-function MI_LXPM(cost_function, bounds, num_generations, population_size, tournament_size, crossover_prob, mutation_prob, alpha, beta)
+function MI_LXPM(cost_function, bounds, num_generations, population_size, tournament_size, crossover_prob, mutation_prob, alpha, beta, coordFactor)
     num_variables = length(bounds)
 
     # Initialize population (real-coded values within bounds)
@@ -13,7 +13,7 @@ function MI_LXPM(cost_function, bounds, num_generations, population_size, tourna
         Threads.@threads for i in eachindex(population)
             x = round.(population[i])
             enforce_onehot!(x)
-            fitness[i] = cost_function(x)
+            fitness[i] = cost_function(x, coordFactor)
         end
 
         # Apply tournament selection
@@ -32,19 +32,18 @@ function MI_LXPM(cost_function, bounds, num_generations, population_size, tourna
         # Evaluate new population
         offspring_fitness = Vector{Float64}(undef, length(offspring))
         Threads.@threads for i in eachindex(offspring)
-            offspring_fitness[i] = cost_function(offspring[i])
+            offspring_fitness[i] = cost_function(offspring[i], coordFactor)
         end
 
         # Select the best individuals for the next generation
         population = survival_selection(population, fitness, offspring, offspring_fitness)
-        println(generation)
     end
 
     # Return the best solution found
-    best_idx = argmin([cost_function(ind) for ind in population])
+    best_idx = argmin([cost_function(ind, coordFactor) for ind in population])
     x_best = round.(population[best_idx])
     enforce_onehot!(x_best)
-    return x_best, cost_function(x_best)
+    return x_best, cost_function(x_best, coordFactor)
 end
 
 function enforce_onehot!(x)
