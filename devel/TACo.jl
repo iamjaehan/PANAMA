@@ -12,9 +12,15 @@ function RunTACo(C::Matrix{Float64}, b::Vector{Float64}, d0::Float64, gamma::Flo
     recordedStates = Set{Vector{Float64}}()
     agentOrder = collect(1:n)  # Sequential order
     step = 0
+    warnFlag = false
 
     while !isConverged
         step += 1
+        if step > 1e4 * 5
+            println("Warning: TACo is taking too long. Terminating...")
+            warnFlag = true
+            break
+        end
         i = agentOrder[mod1(step, n)]  # Julia uses 1-based indexing
 
         # Profit computation
@@ -68,7 +74,7 @@ function RunTACo(C::Matrix{Float64}, b::Vector{Float64}, d0::Float64, gamma::Flo
     trade = O - P
     profit = diagm(b) * (O - P) - C
 
-    return outcome, trade, profit, step
+    return (;outcome, trade, profit, step, warnFlag)
 end
 
 function TestTACo()

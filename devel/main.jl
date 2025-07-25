@@ -7,9 +7,7 @@ function RunCTBGeneration(sectorIdxs, coordFactor)
     return out
 end
 
-function RunNegotiation(out, assetReserve)
-    taxParam = 100
-
+function RunNegotiation(out, assetReserve, taxParam)
     C = Matrix{Float64}(out.scores)
     d0 = Float64(1);
     gamma = Float64(0.9);
@@ -18,8 +16,8 @@ function RunNegotiation(out, assetReserve)
     # Compute asset value
     b = taxParam/(assetReserve .+ 0.01); b = b';
 
-    @time outcome, trade, profit, step = TACo.RunTACo(C, b, d0, gamma, epsilon)
-    return (; outcome, trade, profit, step)
+    @time outcome, trade, profit, step, warnFlag = TACo.RunTACo(C, b, d0, gamma, epsilon)
+    return (; outcome, trade, profit, step, warnFlag)
 end
 
 function ComputeShortFall(negoOut, assetReserve)
@@ -35,16 +33,18 @@ function ComputeShortFall(negoOut, assetReserve)
     return normalize(shortFall,1)
 end
 
-function RunSimulation()
+function RunSimulation(assetReserve, taxParam)
     sectorIdxs = [12, 3, 13]
-    assetReserve = [20,20,20]
-    roundLimit = 10
+    # assetReserve = [20,20,20]
+    roundLimit = 100
+    # taxParam = 10
 
     n = length(sectorIdxs)
     coordFactor = zeros(n)
     negoOut = nothing
     shortFall = nothing
     debug = nothing
+    rounds = nothing
 
     for i = 1:roundLimit
         println("Round $i")
@@ -52,21 +52,23 @@ function RunSimulation()
         out = RunCTBGeneration(sectorIdxs, coordFactor)
         println("CTB generation done")
         # 2. Negotiate
-        debug = out
-        negoOut = RunNegotiation(out, assetReserve)
+        negoOut = RunNegotiation(out, assetReserve, taxParam)
         println("Negotiation done => Steps: $(negoOut.step)")
+        if negoOut.warnFlag
+            debug = out
+        end
         # 3. Compute shortfall
         shortFall = ComputeShortFall(negoOut, assetReserve)
         println("Shortfall: $shortFall")
         if sum(shortFall) == 0
             println("Termination condition met. Terminating...")
+            rounds = i
             break
         end
         # 4. Update coordination factor
         println("Updating coordination factor => Prev: $coordFactor, New: $(coordFactor + shortFall)")
         coordFactor = coordFactor + shortFall
+        rounds = i
     end
-    return (;negoOut, shortFall, debug)
+    return (;negoOut, shortFall, debug, rounds)
 end
-
-out = RunSimulation()
