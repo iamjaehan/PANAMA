@@ -1,6 +1,6 @@
 using Random
 using MAT
-# include("main.jl")
+include("main.jl")
 
 # Define test grid
 assetReserve_grid = [[10,10,10], [20,20,20], [30,30,30], [5,10,40]]

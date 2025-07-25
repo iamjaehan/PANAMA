@@ -1,7 +1,5 @@
 % Load the results from the .mat file
-data = load('MC_test_results_tight.mat');  % or 'MC_test_results.mat'
 data = load("MC_test_results.mat");
-data = load("MC_test_results_merged.mat"); data = data.mergedData;
 % The structure fields:
 % data.assetReserve, data.taxParam, data.repeat, data.rounds, data.shortFall
 
@@ -9,19 +7,25 @@ data = load("MC_test_results_merged.mat"); data = data.mergedData;
 disp('Rounds for each run:');
 disp(data.rounds);
 
-% Example: Display assetReserve and taxParam for each run
-for i = 1:length(data.rounds)
-    fprintf('Run %d: assetReserve = [%s], taxParam = %d, rounds = %d\n', ...
-        i, num2str(data.assetReserve{i}), data.taxParam(i), data.rounds(i));
-end
+% Plot the shortfall history
+% n_runs = length(data.shortFall_history);
+% figure(1)
+% clf
+% for i = 1:n_runs
+%     plot(data.shortFall_history{i}, '-o');
+%     hold on;
+% end
+% legend(arrayfun(@(i) sprintf('Run %d', i), 1:n_runs, 'UniformOutput', false));
+% xlabel('Round');
+% ylabel('Shortfall');
+% title('Shortfall History');
+% set(gca, 'FontSize', 15);
 
-% Example: Plot shortFall for each run
-figure;
-for i = 1:length(data.shortFall)
-    plot(data.shortFall{i}, '-o');
-    hold on;
-end
-xlabel('Index');
-ylabel('ShortFall');
-title('ShortFall for each run');
-legend(arrayfun(@(i) sprintf('Run %d', i), 1:length(data.shortFall), 'UniformOutput', false));
+% Plot rounds for each case
+figure(2)
+clf
+plot(data.rounds)
+xlabel('Round');
+ylabel('Rounds');
+title('Rounds for each case');
+set(gca, 'FontSize', 15);
