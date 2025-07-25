@@ -46,6 +46,7 @@ function RunSimulation(assetReserve, taxParam)
     debug = nothing
     rounds = nothing
     shortFall_history = Vector{Vector{Float64}}() # Store history of shortfalls
+    negoOut_history = Vector{Any}() # Store history of negotiation outcomes
 
     for i = 1:roundLimit
         println("Round $i")
@@ -62,6 +63,7 @@ function RunSimulation(assetReserve, taxParam)
         shortFall = ComputeShortFall(negoOut, assetReserve)
         println("Shortfall: $shortFall")
         push!(shortFall_history, shortFall)
+        push!(negoOut_history, negoOut)
         if sum(shortFall) == 0
             println("Termination condition met. Terminating...")
             rounds = i
@@ -72,5 +74,5 @@ function RunSimulation(assetReserve, taxParam)
         coordFactor = coordFactor + shortFall
         rounds = i
     end
-    return (;negoOut, shortFall, debug, rounds, shortFall_history)
+    return (;negoOut, shortFall, debug, rounds, shortFall_history, negoOut_history)
 end

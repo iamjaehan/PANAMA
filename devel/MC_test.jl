@@ -22,7 +22,8 @@ for assetReserve in assetReserve_grid
                 "shortFall" => out.shortFall,
                 "debug" => out.debug,
                 "negoOut" => out.negoOut,
-                "shortFall_history" => out.shortFall_history
+                "shortFall_history" => out.shortFall_history,
+                "negoOut_history" => out.negoOut_history
             ))
         end
     end
@@ -37,6 +38,7 @@ mat_results["repeat"] = [r["repeat"] for r in results]
 mat_results["rounds"] = [r["rounds"] for r in results]
 mat_results["shortFall"] = [r["shortFall"] for r in results]
 mat_results["shortFall_history"] = [r["shortFall_history"] for r in results]
+mat_results["negoOut_history"] = [r["negoOut_history"] for r in results]
 # Optionally, save debug and negoOut fields if they are simple enough
 # mat_results["debug"] = [r["debug"] for r in results]
 # mat_results["negoOut"] = [r["negoOut"] for r in results]
