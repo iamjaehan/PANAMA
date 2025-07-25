@@ -1,9 +1,9 @@
 using Random
 using MAT
-include("main.jl")
+# include("main.jl")
 
 # Define test grid
-assetReserve_grid = [[10,10,10], [20,20,20], [30,30,30]]
+assetReserve_grid = [[10,10,10], [20,20,20], [30,30,30], [5,10,40]]
 taxParam_grid = [5, 10, 20]
 repeats = 5
 
@@ -21,7 +21,8 @@ for assetReserve in assetReserve_grid
                 "rounds" => out.rounds,
                 "shortFall" => out.shortFall,
                 "debug" => out.debug,
-                "negoOut" => out.negoOut
+                "negoOut" => out.negoOut,
+                "shortFall_history" => out.shortFall_history
             ))
         end
     end
@@ -35,7 +36,7 @@ mat_results["taxParam"] = [r["taxParam"] for r in results]
 mat_results["repeat"] = [r["repeat"] for r in results]
 mat_results["rounds"] = [r["rounds"] for r in results]
 mat_results["shortFall"] = [r["shortFall"] for r in results]
-
+mat_results["shortFall_history"] = [r["shortFall_history"] for r in results]
 # Optionally, save debug and negoOut fields if they are simple enough
 # mat_results["debug"] = [r["debug"] for r in results]
 # mat_results["negoOut"] = [r["negoOut"] for r in results]
