@@ -25,7 +25,7 @@ for i = 1:dataLen
 
     % History data
     numRounds = data.rounds(i);
-    for j = 1:numRounds
+    for j = 1:localRounds
         choiceCostHistory{i}(j) = mean(std(data.negoOut_history{i}{j}.C));
     end
 end
@@ -94,11 +94,6 @@ set(gca, 'FontSize', 15);
 % Exp 6. Cost-var per Asset Reserve variation
 
 % Exp 7. Evolution of choice cost variation
-figure(4)
-clf
-for i = 1:dataLen
-    plot(1:data.rounds(i), choiceCostHistory{i})
-    hold on
-end
+
 
 % Exp 8. Evolution of short fall

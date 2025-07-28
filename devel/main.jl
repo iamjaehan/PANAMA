@@ -17,7 +17,7 @@ function RunNegotiation(out, assetReserve, taxParam)
     b = taxParam/(assetReserve .+ 0.01); b = b';
 
     @time outcome, trade, profit, step, warnFlag = TACo.RunTACo(C, b, d0, gamma, epsilon)
-    return (; outcome, trade, profit, step, warnFlag)
+    return (; outcome, trade, profit, step, warnFlag, C, b)
 end
 
 function ComputeShortFall(negoOut, assetReserve)
@@ -28,16 +28,14 @@ function ComputeShortFall(negoOut, assetReserve)
         shortFall[i] = max(0, trade[i] - assetReserve[i])
     end
     if sum(shortFall) == 0
-        return zeros(n)
+        return (; rawShortFall = shortFall, shortFall = zeros(n))
     end
-    return normalize(shortFall,1)
+    return (; rawShortFall = shortFall, shortFall = normalize(shortFall,1))
 end
 
 function RunSimulation(assetReserve, taxParam)
     sectorIdxs = [12, 3, 13]
-    # assetReserve = [20,20,20]
     roundLimit = 100
-    # taxParam = 10
 
     n = length(sectorIdxs)
     coordFactor = zeros(n)
@@ -60,9 +58,10 @@ function RunSimulation(assetReserve, taxParam)
             debug = out
         end
         # 3. Compute shortfall
-        shortFall = ComputeShortFall(negoOut, assetReserve)
-        println("Shortfall: $shortFall")
-        push!(shortFall_history, shortFall)
+        shortFall_out = ComputeShortFall(negoOut, assetReserve)
+        shortFall = shortFall_out.shortFall
+        println("Shortfall: $(shortFall)")
+        push!(shortFall_history, shortFall_out.rawShortFall)
         push!(negoOut_history, negoOut)
         if sum(shortFall) == 0
             println("Termination condition met. Terminating...")

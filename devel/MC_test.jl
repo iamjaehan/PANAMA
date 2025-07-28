@@ -3,8 +3,14 @@ using MAT
 include("main.jl")
 
 # Define test grid
-assetReserve_grid = [[10,10,10], [20,20,20], [30,30,30], [5,10,40]]
-taxParam_grid = [5, 10, 20]
+assetReserveCaseNum = 10
+taxparamCaseNum = 10
+
+# assetReserve_grid = [[10,10,10], [20,20,20], [30,30,30], [5,10,40]]
+# taxParam_grid = [1, 10, 20]
+
+assetReserve_grid = [rand(1:100, 3) for _ in 1:assetReserveCaseNum]
+taxParam_grid = [rand(1:20) for _ in 1:taxparamCaseNum]
 repeats = 5
 
 results = []
@@ -39,8 +45,5 @@ mat_results["rounds"] = [r["rounds"] for r in results]
 mat_results["shortFall"] = [r["shortFall"] for r in results]
 mat_results["shortFall_history"] = [r["shortFall_history"] for r in results]
 mat_results["negoOut_history"] = [r["negoOut_history"] for r in results]
-# Optionally, save debug and negoOut fields if they are simple enough
-# mat_results["debug"] = [r["debug"] for r in results]
-# mat_results["negoOut"] = [r["negoOut"] for r in results]
 
 matwrite("MC_test_results.mat", mat_results; version="v7.4")
