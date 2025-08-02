@@ -13,6 +13,7 @@ choiceCost = zeros(dataLen, n);
 finalProfit = zeros(dataLen, n);
 systemCost = zeros(dataLen,1);
 systemVar = zeros(dataLen,1);
+systemStd = zeros(dataLen,1);
 for i = 1:dataLen
     % Final data
     tempNegoOut = data.negoOut_history{i}{end};
@@ -21,7 +22,8 @@ for i = 1:dataLen
     choiceCost(i,:) = tempNegoOut.C(:,tempOutcome);
     finalProfit(i,:) = tempNegoOut.profit(:,tempOutcome);
     systemCost(i) = sum(choiceCost(i,:));
-    systemVar(i) = var(choiceCost(i,:));
+    systemStd(i) = std(choiceCost(i,:));
+    systemVar(i) = ComputeGini(choiceCost(i,:));
 
     % History data
     numRounds = data.rounds(i);
@@ -33,28 +35,44 @@ end
 % Define krenel
 assetReserve = zeros(dataLen,n);
 reserveVar = zeros(dataLen,1);
+bVar = zeros(dataLen,1);
+reserveGini = zeros(dataLen,1);
 for i = 1:dataLen
-    assetReserve(i,:) = double(data.assetReserve{i});
-    reserveVar(i) = var(assetReserve(i,:));
+    assetReserve(i,:) = double(data.assetReserve{i});  
+    reserveVar(i) = std(assetReserve(i,:));
+    reserveGini(i) = ComputeGini(assetReserve(i,:));
+    bVar(i) = std(data.negoOut_history{i}{1}.b);
+    % bVar(i) = ComputeGini(data.negoOut_history{i}{1}.b);
 end
 
+reserveVar = bVar;
+
+
 Q1 = prctile(reserveVar, 33);
-Q2 = prctile(reserveVar, 90);
+Q2 = prctile(reserveVar, 66);
 
 Z1 = find(reserveVar < Q1);
-Z2 = find(reserveVar >= Q1 && reserveVar < Q2);
+Z2 = find(reserveVar >= Q1 & reserveVar < Q2);
 Z3 = find(reserveVar >= Q2);
+
+% Q1 = prctile(reserveGini, 33);
+% Q2 = prctile(reserveGini, 66);
+% 
+% Z1 = find(reserveGini < Q1);
+% Z2 = find(reserveGini >= Q1 & reserveGini < Q2);
+% Z3 = find(reserveGini >= Q2);
 
 
 %% Plotting
-
+colors = lines(10);
 % Exp 1. Rounds per k
 figure(1)
 clf
-plot(data.taxParam(Z1), data.rounds(Z1), 'o')
+plot(data.taxParam(Z1), data.rounds(Z1), 'o', 'Color',[colors(1,:)])
 hold on
-plot(data.taxParam(Z2), data.rounds(Z2), 'o')
-plot(data.taxParam(Z3), data.rounds(Z3), 'o')
+plot(data.taxParam(Z2), data.rounds(Z2), 'x', 'Color',[colors(2,:)])
+plot(data.taxParam(Z3), data.rounds(Z3), '^', 'Color',[colors(3,:)])
+legend({"Low bVar","Med bVar","High bVar"})
 xlabel('tax param k');
 ylabel('Rounds');
 title('Rounds per k');
@@ -64,10 +82,11 @@ set(gca, 'FontSize', 15);
 % Exp 2. Sys-cost per k
 figure(2)
 clf
-plot(data.taxParam(Z1), systemCost(Z1),'o')
+plot(data.taxParam(Z1), systemCost(Z1), 'o', 'Color',[colors(1,:)])
 hold on
-plot(data.taxParam(Z2), systemCost(Z2),'o')
-plot(data.taxParam(Z3), systemCost(Z3),'o')
+plot(data.taxParam(Z2), systemCost(Z2), 'x', 'Color',[colors(2,:)])
+plot(data.taxParam(Z3), systemCost(Z3), '^', 'Color',[colors(3,:)])
+legend({"Low bVar","Med bVar","High bVar"})
 xlabel("tax Param k");
 ylabel("System Cost")
 title("System Cost per k")
@@ -77,10 +96,11 @@ set(gca, 'FontSize', 15);
 % Exp 3. Cost-var per k
 figure(3)
 clf
-plot(data.taxParam(Z1), systemVar(Z1),'o')
+plot(data.taxParam(Z1), systemVar(Z1), 'o', 'Color',[colors(1,:)])
 hold on
-plot(data.taxParam(Z2), systemVar(Z2),'o')
-plot(data.taxParam(Z3), systemVar(Z3),'o')
+plot(data.taxParam(Z2), systemVar(Z2), 'x', 'Color',[colors(2,:)])
+plot(data.taxParam(Z3), systemVar(Z3), '^', 'Color',[colors(3,:)])
+legend({"Low bVar","Med bVar","High bVar"})
 xlabel("tax Param k");
 ylabel("Choice Cost Variation")
 title("Cost variation per k")
@@ -88,17 +108,112 @@ grid on
 set(gca, 'FontSize', 15);
 
 % Exp 4. Rounds per Asset Reserve variation
-
-% Exp 5. Sys-cost per Asset Reserve variation
-
-% Exp 6. Cost-var per Asset Reserve variation
+% figure(4)
+% clf
+% plot(reserveGini, data.rounds, 'ro')
+% xlabel('Reserve Gini');
+% ylabel('Rounds');
+% title('Rounds per k');
+% grid on
+% set(gca, 'FontSize', 15);
 
 % Exp 7. Evolution of choice cost variation
-figure(4)
+figure(7)
 clf
 for i = 1:dataLen
-    plot(1:data.rounds(i), choiceCostHistory{i})
+    plot(1:data.rounds(i), choiceCostHistory{i},'Color',[0,0,0,0.2])
     hold on
 end
+grid on
+title("Choice Cost Dispersion vs Rounds")
+xlabel("Rounds")
+ylabel("Choice Cost")
+set(gca,'FontSize',18)
+xlim([1 inf])
 
 % Exp 8. Evolution of short fall
+figure(8)
+clf
+for i = 1:dataLen
+    localShortFallHistory = data.shortFall_history{i};
+    histLen = length(localShortFallHistory);
+    shortFallHist = zeros(histLen,n);
+    for j = 1:histLen
+        localShortFall = data.shortFall_history{i}{j}./double(data.assetReserve{i});
+        % localShortFall = data.shortFall_history{i}{j};
+        shortFallHist(j,:) = localShortFall;
+    end
+    for j = 1:n
+        plot(1:data.rounds(i), shortFallHist(:,j),'Color',[0,0,0,0.2])
+    end
+    hold on
+end
+grid on
+title("Normalized ShortFall vs Rounds")
+xlabel("Rounds")
+ylabel("Choice Cost")
+set(gca,'FontSize',18)
+xlim([1 inf])
+
+% Exp 9. System cost variation
+figure(9)
+clf
+for i = 1:dataLen
+    rounds = double(data.rounds(i));
+    localSystemStd = zeros(rounds,1);
+    localSystemCost = zeros(rounds,1);
+    for j = 1:rounds
+        localC = data.negoOut_history{i}{j}.C;
+        localOutcome = data.negoOut_history{i}{j}.outcome;
+        localSystemCostVec = localC(:,localOutcome);
+        localSystemStd(j) = std(localSystemCostVec);
+        % localSystemStd(j) = ComputeGini(localSystemCostVec);
+        localSystemCost(j) = sum(localSystemCostVec);
+    end
+    % plot(1:rounds,localSystemCost,'Color',[0,0,0,0.2])
+    plot(1:rounds,localSystemStd,'Color',[0,0,0,0.2])
+    hold on
+end
+grid on
+title("System Cost Variation vs Rounds")
+set(gca,'FontSize',18)
+xlim([1 inf])
+
+% Exp 10. System cost
+figure(10)
+clf
+for i = 1:dataLen
+    rounds = double(data.rounds(i));
+    localSystemCost = zeros(rounds,1);
+    for j = 1:rounds
+        localC = data.negoOut_history{i}{j}.C;
+        localOutcome = data.negoOut_history{i}{j}.outcome;
+        localSystemCostVec = localC(:,localOutcome);
+        localSystemCost(j) = sum(localSystemCostVec);
+    end
+    plot(1:rounds,localSystemCost,'Color',[0,0,0,0.2])
+    hold on
+end
+grid on
+title("System Cost vs Rounds")
+set(gca,'FontSize',18)
+xlim([1 inf])
+%%
+% Exp 11. b value to preference
+% We have b value --- connect it to 기회비용?
+% 기회비용 = Cinit - SelectedCost
+figure(11)
+clf
+% oppCost = zeros(dataLen,1);
+for i = 1:dataLen
+    Cinit = data.negoOut_history{i}{end}.C; % Initial selfish cost
+    Cfinal = data.negoOut_history{i}{end}.C; % Final selfish cost
+    proposalCost = diag(Cinit);
+    bVec = data.negoOut_history{i}{1}.b;
+    % bVec = bVec/max(bVec); % Normalize
+    finalOutcome = data.negoOut_history{i}{end}.outcome;
+    oppCost = Cfinal(:,finalOutcome) - proposalCost;
+    plot(bVec, oppCost,'.','Color',[0 0 0 0.2])
+    hold on
+end
+grid on
