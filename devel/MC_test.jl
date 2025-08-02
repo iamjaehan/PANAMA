@@ -34,8 +34,8 @@ results = []
 
 testCaseNum = 250
 for testCase = 1:testCaseNum
-    assetReserve = rand(1:100, 3)
-    taxParam = rand(1:20)
+    assetReserve = rand(1:50, 3)
+    taxParam = rand(1:10) / 10 * 2
     println("Running: assetReserve=$(assetReserve), taxParam=$(taxParam), testIdx=$testCase")
     out = RunSimulation(assetReserve, taxParam)
     push!(results, Dict(

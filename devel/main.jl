@@ -25,7 +25,7 @@ function ComputeShortFall(negoOut, assetReserve)
     n = size(trade)[1]
     shortFall = zeros(n)
     for i = 1:n
-        shortFall[i] = max(0, trade[i] - assetReserve[i])
+        shortFall[i] = max(0, trade[i] - assetReserve[i]) / assetReserve[i]
     end
     if sum(shortFall) == 0
         return (; rawShortFall = shortFall, shortFall = zeros(n))

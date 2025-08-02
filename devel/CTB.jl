@@ -187,13 +187,13 @@ function cost_function(x, coordFactor)
     misc = GetMiscData()
     idxs = misc.MiscTotIdxs
     fabIdx = misc.MiscFabIdx
-    cost = computeCost(x, fabIdx)
-    # if fabIdx != idxs[2]
-    #     cost += computeCost(x,idxs[2]) * 10
-    # end
+    cost = 0
     for i = 1:length(idxs)
         if fabIdx != idxs[i] && coordFactor[i] > 0
             cost += computeCost(x,idxs[i]) * coordFactor[i]
+        elseif fabIdx == idxs[i]
+            # cost += computeCost(x,idxs[i]) * (1 + coordFactor[i])
+            cost += computeCost(x,idxs[i])
         end
     end
     return cost
@@ -202,7 +202,7 @@ end
 function computeCost(x, fabIdx)
     misc = GetMiscData()
     w_airlines = misc.MiscWeights[1] * 0.0
-    w_FAB = misc.MiscWeights[2] * 10000
+    w_FAB = misc.MiscWeights[2]
     flight_to_airline = misc.MiscFlightToAirline
     valid_options = misc.MiscValidOptions
     tos_list = misc.MiscTosList
@@ -235,7 +235,8 @@ function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabI
     
     # Weight variables for airlines and FAB
     w_airlines = weights[1:num_airlines]
-    w_FAB = weights[num_airlines+1]
+    # w_FAB = weights[num_airlines+1]
+    w_FAB = 1
     w = [w_airlines, w_FAB]
 
     # Transfer data for cost function computation
