@@ -32,7 +32,7 @@ results = []
 #     end
 # end
 
-testCaseNum = 500
+testCaseNum = 1000
 for testCase = 1:testCaseNum
     assetReserve = rand(1:50, 3)
     taxParam = rand(1:10) / 10 * 2
