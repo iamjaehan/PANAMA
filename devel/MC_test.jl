@@ -32,7 +32,7 @@ results = []
 #     end
 # end
 
-testCaseNum = 250
+testCaseNum = 500
 for testCase = 1:testCaseNum
     assetReserve = rand(1:50, 3)
     taxParam = rand(1:10) / 10 * 2
@@ -55,10 +55,9 @@ end
 mat_results = Dict()
 mat_results["assetReserve"] = [r["assetReserve"] for r in results]
 mat_results["taxParam"] = [r["taxParam"] for r in results]
-mat_results["repeat"] = [r["repeat"] for r in results]
 mat_results["rounds"] = [r["rounds"] for r in results]
 mat_results["shortFall"] = [r["shortFall"] for r in results]
 mat_results["shortFall_history"] = [r["shortFall_history"] for r in results]
 mat_results["negoOut_history"] = [r["negoOut_history"] for r in results]
 
-matwrite("MC_test_results_randomSampling_250.mat", mat_results; version="v7.4")
+matwrite("MC_test_results_randomSampling_500.mat", mat_results; version="v7.4")

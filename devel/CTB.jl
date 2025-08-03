@@ -192,8 +192,8 @@ function cost_function(x, coordFactor)
         if fabIdx != idxs[i] && coordFactor[i] > 0
             cost += computeCost(x,idxs[i]) * coordFactor[i]
         elseif fabIdx == idxs[i]
-            # cost += computeCost(x,idxs[i]) * (1 + coordFactor[i])
-            cost += computeCost(x,idxs[i])
+            cost += computeCost(x,idxs[i]) * (1 + coordFactor[i])
+            # cost += computeCost(x,idxs[i])
         end
     end
     return cost
