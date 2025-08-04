@@ -35,7 +35,7 @@ results = []
 testCaseNum = 1000
 for testCase = 1:testCaseNum
     assetReserve = rand(1:50, 3)
-    taxParam = rand(1:30) / 30 * 3
+    taxParam = 10 .^(log10(0.01) .+ (log10(10) .- log10(0.01)).*rand())
     println("Running: assetReserve=$(assetReserve), taxParam=$(taxParam), testIdx=$testCase")
     out = RunSimulation(assetReserve, taxParam)
     push!(results, Dict(
@@ -60,4 +60,4 @@ mat_results["shortFall"] = [r["shortFall"] for r in results]
 mat_results["shortFall_history"] = [r["shortFall_history"] for r in results]
 mat_results["negoOut_history"] = [r["negoOut_history"] for r in results]
 
-matwrite("MC_test_results_randomSampling_500.mat", mat_results; version="v7.4")
+matwrite("MC_test_results_randomSampling_1000.mat", mat_results; version="v7.4")
