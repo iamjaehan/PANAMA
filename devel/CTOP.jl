@@ -2,62 +2,90 @@
 
 module CTOP
 using Dates
-import ..TOS: Flight, add_trajectory_option!
+import ..TOS: Flight, ParsedFlight, add_trajectory_option!, parse_flight_info
+using JuMP, Gurobi, LinearAlgebra, Luxor
+using MAT
+import ..CTB
+import ..GA: MI_LXPM
 
-# Function to process TOS from multiple airlines and assign optimal trajectories
-function process_ctop!(tos_list::Vector{Flight})
-    # Group trajectories by flight_id directly from Flight structs
-    grouped_trajectories = Dict{String, Vector{Dict{String, Any}}}()
-
-    for flight in tos_list
-        flight_id = flight.flight_id
-        trajectory_options = flight.trajectory_options
-
-        if haskey(grouped_trajectories, flight_id)
-            append!(grouped_trajectories[flight_id], trajectory_options)
-        else
-            grouped_trajectories[flight_id] = trajectory_options
-        end
+function cost_function(x, coordFactor)
+    misc = CTB.GetMiscData()
+    idxs = misc.MiscTotIdxs
+    totalCost = 0
+    for i = 1:length(idxs)
+        totalCost += CTB.computeCost(x,idxs[i])
     end
-
-    # Assign trajectories using traditional CTOP (sort by earliest valid start time and lowest RTC)
-    assigned_flights = []
-    for (flight_id, options) in grouped_trajectories
-        # Sorting based on 'valid_start_time' and 'relative_trajectory_cost'
-        sorted_options = sort(options, by = x -> (x["valid_start_time"], x["relative_trajectory_cost"]))
-        assigned_trajectory = first(sorted_options)
-        
-        push!(assigned_flights, Dict(
-            "flight_id" => flight_id,
-            "assigned_trajectory" => assigned_trajectory
-        ))
-    end
-
-    # Display assigned trajectories
-    for flight in assigned_flights
-        println("Assigned Flight: ", flight["flight_id"])
-        println("  Route: ", flight["assigned_trajectory"]["route"])
-        println("  Valid Start Time: ", flight["assigned_trajectory"]["valid_start_time"])
-        println("  Relative Trajectory Cost (RTC): ", flight["assigned_trajectory"]["relative_trajectory_cost"])
-        println()
-    end
-
-    return assigned_flights
+    return totalCost
 end
 
-# Example usage with simulated TOS from multiple airlines
-function example_tos_processing()
-    # Create sample flights
-    flight1 = Flight("FL123", "ORD", "LGA", DateTime(2023, 4, 25, 13, 0))
-    add_trajectory_option!(flight1, "ORD..ELX..JHW..RKA..LGA", 350, 480, 0, DateTime(2023, 4, 25, 13, 0), nothing, nothing)
-    add_trajectory_option!(flight1, "ORD..TVC..RKA..IGN..LGA", 370, 480, 10, DateTime(2023, 4, 25, 14, 0), nothing, nothing)
+function solveCtb(tos_list::Vector{ParsedFlight}, weights::Vector{Float64}, fabIdx, param, idxs)
+    num_flights = length(tos_list)
+    
+    # Identify unique airlines by extracting first two letters of flight_id
+    airline_codes = unique(first(tos_list[i].flight_id, 2) for i in 1:num_flights)
+    num_airlines = length(airline_codes)
+    
+    # Map flights to their respective airline index
+    flight_to_airline = Dict(i => findfirst(==(first(tos_list[i].flight_id, 2)), airline_codes) 
+                   for i in 1:num_flights)
+    
+    # Dictionary for valid options per flight
+    valid_options = Dict(i => 1:length(tos_list[i].trajectory_options) for i in 1:num_flights)
+    
+    # Weight variables for airlines and FAB
+    w_airlines = weights[1:num_airlines]
+    # w_FAB = weights[num_airlines+1]
+    w_FAB = 1
+    w = [w_airlines, w_FAB]
 
-    flight2 = Flight("FL456", "DFW", "JFK", DateTime(2023, 4, 25, 13, 10))
-    add_trajectory_option!(flight2, "DFW..ATL..JFK", 360, 500, 5, DateTime(2023, 4, 25, 13, 10), nothing, nothing)
-    add_trajectory_option!(flight2, "DFW..MEM..JFK", 340, 480, 2, DateTime(2023, 4, 25, 13, 30), nothing, nothing)
+    # Transfer data for cost function computation
+    CTB.SetMiscData(tos_list, fabIdx, param, w, flight_to_airline, valid_options, num_flights, idxs)
 
-    # Process and assign TOS
-    process_ctop!([flight1, flight2])
+    # Set bound
+    bounds = []
+    for i = 1:sum(length(valid_options[i]) for i in 1:num_flights)
+        push!(bounds,(0,1))
+    end
+    coordFactor = zeros(length(idxs))
+
+    # Solve!
+    best_solution, best_cost = MI_LXPM(CTOP.cost_function, bounds, 20, 50, 7, 0.8, 0.1, 0.3, 2.0, coordFactor)
+    
+    return best_solution, best_cost
 end
 
+function RunCTOP(idxs)
+    # 1. Load all flights (as ParsedFlight)
+    flightSet = CTB.mat_ctb_generation(0)
+
+    # 2. Prepare CTOP parameters
+    param = CTB.GetParam()  # Shared utility
+    num_flights = length(flightSet)
+
+    # Extract all FAB indices (assume complete for centralized eval)
+    fabIdx = 0  # Can choose 0 or arbitrary FAB to evaluate global cost
+
+    # 3. Set uniform weights (or fixed fairness priorities)
+    airline_codes = unique(first(flightSet[i].flight_id, 2) for i in 1:num_flights)
+    num_airlines = length(airline_codes)
+    weights = ones(num_airlines + 1)
+    weights = weights / sum(weights)  # Normalize
+
+    # 5. Solve the centralized CTB optimization
+    raw, cost = CTOP.solveCtb(flightSet, weights, fabIdx, param, idxs)
+
+    # Optional: convert x into TOS indices per flight
+    selected_indices = []
+    for i in 1:num_flights
+        local_var = raw[5*(i-1)+1:5*i]
+        push!(selected_indices, findmax(local_var)[2])
+    end
+
+    indCost = []
+    for i = 1:length(idxs)
+        push!(indCost,CTB.computeCost(raw,idxs[i]))
+    end
+
+    return (; raw, selected_indices, cost, indCost)
+end
 end # module CTOP

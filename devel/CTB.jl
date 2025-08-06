@@ -272,7 +272,7 @@ function generateCtbSet(tos_list::Vector{ParsedFlight}, fabIdx, param, idxs, coo
     # Generate CTBs
     # for i = 1:num_airlines + 1
     for i in 1:1
-        weights = rand(num_airlines + 1)
+        weights = ones(num_airlines + 1)
         weights = weights / sum(weights)
         # Acquire a CTB
         ctb = generateCtb(tos_list, weights, fabIdx, param, idxs, coordFactor)
