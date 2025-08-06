@@ -383,11 +383,11 @@ function exportCTB(result, idxs)
         end
     end
 
-    matwrite("negoTable.mat", Dict(
-        "names" => names,
-        "selectedRoute" => selectedRoute,
-        "scores" => scores
-    ); version="v7.4")
+    # matwrite("negoTable.mat", Dict(
+    #     "names" => names,
+    #     "selectedRoute" => selectedRoute,
+    #     "scores" => scores
+    # ); version="v7.4")
 
     return (; scores, selectedRoute)
 
