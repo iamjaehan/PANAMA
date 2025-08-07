@@ -2,7 +2,8 @@
 % data = load("MC_test_results.mat");
 % data = load("MC_test_results_randomSampling_500.mat");
 % data = load("MC_test_results_randomSampling_1000.mat");
-data = load("MC_test_results_randomSampling_10000.mat");
+% data = load("MC_test_results_randomSampling_10000.mat");
+data = load("MC_test_results_randomSampling_1000_w_baselines.mat");
 % The structure fields:
 % data.assetReserve, data.taxParam, data.repeat, data.rounds, data.shortFall
 
@@ -82,12 +83,12 @@ for i = 1:dataLen
     % meanb(i) = mean(double(data.assetReserve{i})./data.negoOut_history{i}{1}.b);
 end
 
-% Q1 = prctile(reserveVar, 33);
-% Q2 = prctile(reserveVar, 66);
-% 
-% Z1 = find(reserveVar < Q1);
-% Z2 = find(reserveVar >= Q1 & reserveVar < Q2);
-% Z3 = find(reserveVar >= Q2);
+Q1 = prctile(data.taxParam, 25);
+Q2 = prctile(data.taxParam, 75);
+
+K1 = find(data.taxParam < Q1);
+K2 = find(data.taxParam >= Q1 & data.taxParam < Q2);
+K3 = find(data.taxParam >= Q2);
 
 % Q1 = prctile(reserveGini, 33);
 % Q2 = prctile(reserveGini, 66);
@@ -528,3 +529,66 @@ xlabel("Correlation Coefficient")
 ylabel("Counts")
 grid on
 set(gca, 'fontsize', 15)
+
+%% Comparison Study
+cent_SystemCost = zeros(dataLen,1);
+fcfs_SystemCost = zeros(dataLen,1);
+cent_SystemStd = zeros(dataLen,1);
+fcfs_SystemStd = zeros(dataLen,1);
+for i = 1:dataLen
+    cent_SystemCost(i) = sum(cell2mat(data.centralized_cost{i}));
+    cent_SystemStd(i) = ComputeGini(cell2mat(data.centralized_cost{i}));
+    fcfs_SystemCost(i) = sum(cell2mat(data.fcfs_cost{i}));
+    fcfs_SystemStd(i) = ComputeGini(cell2mat(data.fcfs_cost{i}));
+end
+
+ours_SystemCost = zeros(dataLen,1);
+ours_SystemStd = zeros(dataLen,1);
+for i = 1:dataLen
+    ours_SystemCost(i) = SystemCost{i}(end);
+    ours_SystemStd(i) = SystemStd{i}(end);
+end
+
+CostDataPack = [ours_SystemCost, cent_SystemCost, fcfs_SystemCost];
+StdDataPack = [ours_SystemStd, cent_SystemStd, fcfs_SystemStd];
+
+test = [2.5399535140875003, 0.5702869889284113, 0.18135935248821328];
+naive_SystemStd = zeros(dataLen,1);
+naive_SystemCost = zeros(dataLen,1);
+for i = 1:dataLen
+    naive_SystemStd(i) = ComputeGini(test);
+    naive_SystemCost(i) = sum(test);
+end
+
+figure(50)
+clf
+group1 = ours_SystemCost(K1);
+group2 = ours_SystemCost(K2);
+group3 = ours_SystemCost(K3);
+group4 = cent_SystemCost;
+group5 = fcfs_SystemCost;
+group6 = naive_SystemCost;
+localPack = [group1;group2;group3;group4;group5;group6];
+group = [ones(length(group1),1); repmat(2,length(group2),1); repmat(3,length(group3),1); repmat(4,dataLen,1); repmat(5,dataLen,1); repmat(6,dataLen,1)];
+% boxplot(CostDataPack,'Labels',{'Ours', 'Centralized-CTOP', 'FCFS-CTOP'})
+boxplot(localPack,group,'Labels',{'Ours (Low k)', 'Ours (Med k)', 'Ours (High k)', 'Centralized-CTOP', 'FCFS-CTOP', 'Naive-CTOP'})
+title("System Cost Comparison")
+ylabel("Cost")
+grid on
+set(gca,'fontsize',15,'FontWeight','bold')
+
+figure(51)
+clf
+group1 = ours_SystemStd(K1);
+group2 = ours_SystemStd(K2);
+group3 = ours_SystemStd(K3);
+group4 = cent_SystemStd;
+group5 = fcfs_SystemStd;
+group6 = naive_SystemStd;
+localPack = [group1;group2;group3;group4;group5;group6];
+group = [ones(length(group1),1); repmat(2,length(group2),1); repmat(3,length(group3),1); repmat(4,dataLen,1); repmat(5,dataLen,1); repmat(6,dataLen,1)];
+boxplot(localPack,group,'Labels',{'Ours (Low k)', 'Ours (Med k)', 'Ours (High k)', 'Centralized-CTOP', 'FCFS-CTOP', 'Naive-CTOP'})
+title("System Gini Index Comparison")
+ylabel("Gini Index")
+grid on
+set(gca,'fontsize',15,'FontWeight','bold')
