@@ -33,7 +33,7 @@ results = []
 #     end
 # end
 
-testCaseNum = 1000
+testCaseNum = 10000
 sectorIdxs = [12, 3, 13]
 for testCase = 1:testCaseNum
     assetReserve = rand(1:50, 3)

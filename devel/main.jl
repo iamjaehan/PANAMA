@@ -14,7 +14,7 @@ function RunNegotiation(out, assetReserve, taxParam)
     epsilon = Float64(10);
 
     # Compute asset value
-    b = taxParam./(assetReserve .+ 0.01);
+    b = taxParam./(assetReserve);
     println(b)
 
     @time outcome, trade, profit, step, warnFlag = TACo.RunTACo(C, b, d0, gamma, epsilon)
