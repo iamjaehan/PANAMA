@@ -2,8 +2,8 @@
 % data = load("MC_test_results.mat");
 % data = load("MC_test_results_randomSampling_500.mat");
 % data = load("MC_test_results_randomSampling_1000.mat");
-% data = load("MC_test_results_randomSampling_10000.mat");
-data = load("MC_test_results_randomSampling_1000_w_baselines.mat");
+data = load("MC_test_results_randomSampling_10000.mat");
+% data = load("MC_test_results_randomSampling_1000_w_baselines.mat");
 % The structure fields:
 % data.assetReserve, data.taxParam, data.repeat, data.rounds, data.shortFall
 
@@ -354,20 +354,20 @@ set(gca, 'FontSize', 15);
 % %%
 % figure(9)
 % clf
-% SystemStd = cell(dataLen,1);
-% for i = 1:dataLen
-%     rounds = double(data.rounds(i));
-%     localSystemStd = zeros(rounds,1);
-%     for j = 1:rounds
-%         localC = data.negoOut_history{i}{j}.C;
-%         localOutcome = data.negoOut_history{i}{j}.outcome;
-%         localSystemCostVec = localC(:,localOutcome);
-%         % localSystemStd(j) = std(localSystemCostVec);
-%         localSystemStd(j) = ComputeGini(localSystemCostVec);
-%         % localSystemCost(j) = sum(localSystemCostVec);
-%     end
-%     SystemStd{i} = localSystemStd;
-% end
+SystemStd = cell(dataLen,1);
+for i = 1:dataLen
+    rounds = double(data.rounds(i));
+    localSystemStd = zeros(rounds,1);
+    for j = 1:rounds
+        localC = data.negoOut_history{i}{j}.C;
+        localOutcome = data.negoOut_history{i}{j}.outcome;
+        localSystemCostVec = localC(:,localOutcome);
+        % localSystemStd(j) = std(localSystemCostVec);
+        localSystemStd(j) = ComputeGini(localSystemCostVec);
+        % localSystemCost(j) = sum(localSystemCostVec);
+    end
+    SystemStd{i} = localSystemStd;
+end
 % for i = Z1'
 %     plot(1:data.rounds(i), SystemStd{i}/SystemStd{i}(1),'Color',[0,0,0,0.05],'LineWidth',3)
 %     plot(data.rounds(i), SystemStd{i}(end)/SystemStd{i}(1), 'o', 'Color',colors(1,:))
@@ -416,18 +416,18 @@ set(gca, 'FontSize', 15);
 % 
 % figure(10)
 % clf
-% SystemCost = cell(dataLen,1);
-% for i = 1:dataLen
-%     rounds = double(data.rounds(i));
-%     localSystemCost = zeros(rounds,1);
-%     for j = 1:rounds
-%         localC = data.negoOut_history{i}{j}.C;
-%         localOutcome = data.negoOut_history{i}{j}.outcome;
-%         localSystemCostVec = localC(:,localOutcome);
-%         localSystemCost(j) = sum(localSystemCostVec);
-%     end
-%     SystemCost{i} = localSystemCost;
-% end
+SystemCost = cell(dataLen,1);
+for i = 1:dataLen
+    rounds = double(data.rounds(i));
+    localSystemCost = zeros(rounds,1);
+    for j = 1:rounds
+        localC = data.negoOut_history{i}{j}.C;
+        localOutcome = data.negoOut_history{i}{j}.outcome;
+        localSystemCostVec = localC(:,localOutcome);
+        localSystemCost(j) = sum(localSystemCostVec);
+    end
+    SystemCost{i} = localSystemCost;
+end
 % for i = Z1'
 %     plot(1:data.rounds(i), SystemCost{i}/SystemCost{i}(1),'Color',[0,0,0,0.05],'LineWidth',3)
 %     plot(data.rounds(i), SystemCost{i}(end)/SystemCost{i}(1), 'o', 'Color',colors(1,:))
@@ -530,58 +530,58 @@ set(gca, 'FontSize', 15);
 % grid on
 % set(gca, 'fontsize', 15)
 % 
-% %% Comparison Study
-% cent_SystemCost = zeros(dataLen,1);
-% fcfs_SystemCost = zeros(dataLen,1);
-% cent_SystemStd = zeros(dataLen,1);
-% fcfs_SystemStd = zeros(dataLen,1);
-% for i = 1:dataLen
-%     cent_SystemCost(i) = sum(cell2mat(data.centralized_cost{i}));
-%     cent_SystemStd(i) = ComputeGini(cell2mat(data.centralized_cost{i}));
-%     fcfs_SystemCost(i) = sum(cell2mat(data.fcfs_cost{i}));
-%     fcfs_SystemStd(i) = ComputeGini(cell2mat(data.fcfs_cost{i}));
-% end
-% 
-% ours_SystemCost = zeros(dataLen,1);
-% ours_SystemStd = zeros(dataLen,1);
-% for i = 1:dataLen
-%     ours_SystemCost(i) = SystemCost{i}(end);
-%     ours_SystemStd(i) = SystemStd{i}(end);
-% end
-% 
-% CostDataPack = [ours_SystemCost, cent_SystemCost, fcfs_SystemCost];
-% StdDataPack = [ours_SystemStd, cent_SystemStd, fcfs_SystemStd];
-% 
-% test = [2.5399535140875003, 0.5702869889284113, 0.18135935248821328];
-% naive_SystemStd = zeros(dataLen,1);
-% naive_SystemCost = zeros(dataLen,1);
-% for i = 1:dataLen
-%     naive_SystemStd(i) = ComputeGini(test);
-%     naive_SystemCost(i) = sum(test);
-% end
+%% Comparison Study
+cent_SystemCost = zeros(dataLen,1);
+fcfs_SystemCost = zeros(dataLen,1);
+cent_SystemStd = zeros(dataLen,1);
+fcfs_SystemStd = zeros(dataLen,1);
+for i = 1:dataLen
+    cent_SystemCost(i) = sum(cell2mat(data.centralized_cost{i}));
+    cent_SystemStd(i) = ComputeGini(cell2mat(data.centralized_cost{i}));
+    fcfs_SystemCost(i) = sum(cell2mat(data.fcfs_cost{i}));
+    fcfs_SystemStd(i) = ComputeGini(cell2mat(data.fcfs_cost{i}));
+end
 
-%% Realtion Study
+ours_SystemCost = zeros(dataLen,1);
+ours_SystemStd = zeros(dataLen,1);
+for i = 1:dataLen
+    ours_SystemCost(i) = SystemCost{i}(end);
+    ours_SystemStd(i) = SystemStd{i}(end);
+end
+
+CostDataPack = [ours_SystemCost, cent_SystemCost, fcfs_SystemCost];
+StdDataPack = [ours_SystemStd, cent_SystemStd, fcfs_SystemStd];
+
+test = [2.5399535140875003, 0.5702869889284113, 0.18135935248821328];
+naive_SystemStd = zeros(dataLen,1);
+naive_SystemCost = zeros(dataLen,1);
+for i = 1:dataLen
+    naive_SystemStd(i) = ComputeGini(test);
+    naive_SystemCost(i) = sum(test);
+end
+
+%% Relation Study
 Bmax = zeros(dataLen,1);
 for i = 1:dataLen
     Bmax(i) = ComputeBMax(data,i);
 end
 roundBound = zeros(dataLen,1);
 for i = 1:dataLen
-    % roundBound(i) = data.taxParam(i) * Bmax(i);
-    roundBound(i) = ceil(data.taxParam(i) * Bmax(i));
+    roundBound(i) = data.taxParam(i) * Bmax(i);
+    % roundBound(i) = ceil(data.taxParam(i) * Bmax(i));
 end
 
 figure(41)
 clf
-semilogx(roundBound(Z1), data.rounds(Z1), 'o', 'Color',[colors(1,:)])
+loglog(roundBound(Z1), data.rounds(Z1), 'o', 'Color',[colors(1,:)])
 hold on
-semilogx(roundBound(Z2), data.rounds(Z2), '*', 'Color',[colors(2,:)])
-semilogx(roundBound(Z3), data.rounds(Z3), 's', 'Color',[colors(3,:)],'MarkerSize',10)
-semilogx(1:30, 1:30, 'k')
+loglog(roundBound(Z2), data.rounds(Z2), '*', 'Color',[colors(2,:)])
+loglog(roundBound(Z3), data.rounds(Z3), 's', 'Color',[colors(3,:)],'MarkerSize',10)
+loglog(1:30, 1:30, 'k')
 legend({"Low asset value","Med asset value","High asset value"})
 xlabel('Round Bound');
 ylabel('Rounds');
-title('Rounds vs k');
+title('Rounds vs Worst Case Round Bound');
 grid on
 set(gca, 'FontSize', 15);
 
@@ -598,15 +598,15 @@ for i = 1:dataLen
 end
 figure(42)
 clf
-semilogx(effBound(Z1), optGap(Z1), 'o', 'Color',[colors(1,:)])
+loglog(effBound(Z1), optGap(Z1), 'o', 'Color',[colors(1,:)])
 hold on
-semilogx(effBound(Z2), optGap(Z2), '*', 'Color',[colors(2,:)])
-semilogx(effBound(Z3), optGap(Z3), 's', 'Color',[colors(3,:)],'MarkerSize',10)
-semilogx(1:30, 1:30, 'k')
+loglog(effBound(Z2), optGap(Z2), '*', 'Color',[colors(2,:)])
+loglog(effBound(Z3), optGap(Z3), 's', 'Color',[colors(3,:)],'MarkerSize',10)
+loglog(1:30, 1:30, 'k')
 legend({"Low asset value","Med asset value","High asset value"})
 xlabel('Efficiency Bound');
-ylabel('Opt Gap');
-title('k vs opt gap');
+ylabel('Optimality Gap');
+title('Optimality Gap vs Optimality Gap Bound');
 grid on
 set(gca, 'FontSize', 15);
 
