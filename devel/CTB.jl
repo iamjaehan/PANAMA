@@ -188,12 +188,12 @@ function cost_function(x, coordFactor)
     idxs = misc.MiscTotIdxs
     fabIdx = misc.MiscFabIdx
     cost = 0
+    alpha = sum(coordFactor) + 1
     for i = 1:length(idxs)
         if fabIdx != idxs[i] && coordFactor[i] > 0
-            cost += computeCost(x,idxs[i]) * coordFactor[i]
+            cost += computeCost(x,idxs[i]) * coordFactor[i] / alpha
         elseif fabIdx == idxs[i]
-            cost += computeCost(x,idxs[i]) * (1 + coordFactor[i])
-            # cost += computeCost(x,idxs[i])
+            cost += computeCost(x,idxs[i]) * (1 + coordFactor[i]) / alpha
         end
     end
     return cost
