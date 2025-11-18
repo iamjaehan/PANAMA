@@ -82,4 +82,4 @@ end
 mat_results = Dict()
 mat_results["indCost"] = [r["indCost"] for r in results]
 mat_results["winnerRaw"] = [r["winnerRaw"] for r in results]
-matwrite("MC_test_results_voting.mat", results; version="v7.4")
+matwrite("MC_test_results_voting.mat", mat_results; version="v7.4")
