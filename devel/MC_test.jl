@@ -33,39 +33,53 @@ results = []
 #     end
 # end
 
-testCaseNum = 10000
-sectorIdxs = [12, 3, 13]
+# testCaseNum = 10000
+# sectorIdxs = [12, 3, 13]
+# for testCase = 1:testCaseNum
+#     assetReserve = rand(1:50, 3)
+#     taxParam = 10 .^(log10(0.01) .+ (log10(10) .- log10(0.01)).*rand())
+#     println("Running: assetReserve=$(assetReserve), taxParam=$(taxParam), testIdx=$testCase")
+#     out = RunSimulation(assetReserve, taxParam)
+#     out_centralized = CTOP.RunCTOP(sectorIdxs)
+#     out_fcfs = CTOP.RunCTOPFCFS(sectorIdxs)
+#     push!(results, Dict(
+#         "assetReserve" => assetReserve,
+#         "taxParam" => taxParam,
+#         "rounds" => out.rounds,
+#         "shortFall" => out.shortFall,
+#         "debug" => out.debug,
+#         "negoOut" => out.negoOut,
+#         "shortFall_history" => out.shortFall_history,
+#         "negoOut_history" => out.negoOut_history,
+#         "centralized_cost" => out_centralized.indCost,
+#         "fcfs_cost" => out_fcfs.indCost
+#     ))
+# end
+
+# # Prepare for saving: convert results to a savable format
+# # (MAT.jl cannot save arbitrary Julia objects, so we extract basic fields)
+# mat_results = Dict()
+# mat_results["assetReserve"] = [r["assetReserve"] for r in results]
+# mat_results["taxParam"] = [r["taxParam"] for r in results]
+# mat_results["rounds"] = [r["rounds"] for r in results]
+# mat_results["shortFall"] = [r["shortFall"] for r in results]
+# mat_results["shortFall_history"] = [r["shortFall_history"] for r in results]
+# mat_results["negoOut_history"] = [r["negoOut_history"] for r in results]
+# mat_results["centralized_cost"] = [r["centralized_cost"] for r in results]
+# mat_results["fcfs_cost"] = [r["fcfs_cost"] for r in results]
+
+# matwrite("MC_test_results_randomSampling_1000_w_baselines.mat", mat_results; version="v7.4")
+
+testCaseNum = 1000
 for testCase = 1:testCaseNum
-    assetReserve = rand(1:50, 3)
-    taxParam = 10 .^(log10(0.01) .+ (log10(10) .- log10(0.01)).*rand())
-    println("Running: assetReserve=$(assetReserve), taxParam=$(taxParam), testIdx=$testCase")
-    out = RunSimulation(assetReserve, taxParam)
-    out_centralized = CTOP.RunCTOP(sectorIdxs)
-    out_fcfs = CTOP.RunCTOPFCFS(sectorIdxs)
+    out = RunVotingSimulation()
     push!(results, Dict(
-        "assetReserve" => assetReserve,
-        "taxParam" => taxParam,
-        "rounds" => out.rounds,
-        "shortFall" => out.shortFall,
-        "debug" => out.debug,
-        "negoOut" => out.negoOut,
-        "shortFall_history" => out.shortFall_history,
-        "negoOut_history" => out.negoOut_history,
-        "centralized_cost" => out_centralized.indCost,
-        "fcfs_cost" => out_fcfs.indCost
+        "indCost" => out.indCost,
+        "winnerRaw" => out.winnerRaw
     ))
 end
 
-# Prepare for saving: convert results to a savable format
-# (MAT.jl cannot save arbitrary Julia objects, so we extract basic fields)
 mat_results = Dict()
-mat_results["assetReserve"] = [r["assetReserve"] for r in results]
-mat_results["taxParam"] = [r["taxParam"] for r in results]
-mat_results["rounds"] = [r["rounds"] for r in results]
-mat_results["shortFall"] = [r["shortFall"] for r in results]
-mat_results["shortFall_history"] = [r["shortFall_history"] for r in results]
-mat_results["negoOut_history"] = [r["negoOut_history"] for r in results]
-mat_results["centralized_cost"] = [r["centralized_cost"] for r in results]
-mat_results["fcfs_cost"] = [r["fcfs_cost"] for r in results]
-
-matwrite("MC_test_results_randomSampling_1000_w_baselines.mat", mat_results; version="v7.4")
+mat_results["indCost"] = [r["indCost"] for r in results]
+mat_results["winnerRaw"] = [r["winnerRaw"] for r in results]
+matwrite("MC_test_results_voting.mat", results; version="v7.4")

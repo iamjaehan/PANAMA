@@ -389,7 +389,7 @@ function exportCTB(result, idxs)
     #     "scores" => scores
     # ); version="v7.4")
 
-    return (; scores, selectedRoute)
+    return (; scores, selectedRoute, raws)
 
 end
 

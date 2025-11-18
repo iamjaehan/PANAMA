@@ -1,32 +1,81 @@
-nSet = [2, 5, 10, 20, 30, 40, 50];
-mSet = [10, 50, 100, 500];
+nSet = [2, 5, 10];
+mSet = [2, 10, 30, 100, 300, 1000];
 gamma = 0.9;
 epsilon = 1e-3;
+iteration = 100;
+d0 = 1;
 
-timeRecord = zeros(length(nSet), length(mSet));
-iteration = 5;
+timeRecord = zeros(length(nSet), length(mSet), iteration);
+roundRecord = zeros(length(nSet), length(mSet), iteration);
 
 for i = nSet
     for j = mSet
         for ii = 1:iteration
-        n = i;
-        m = j;
-        C = rand(n,m);
-        b = rand(n,1);
-        d0 = 1;
+            n = i;
+            m = j;
+            C = rand(n,m);
+            b = rand(n,1);
             disp([num2str(i)+", "+num2str(j)])
             tic
-            TACo(C, b, d0, gamma, epsilon);
+            [~,~,~,rounds] = TACo(C, b, d0, gamma, epsilon);
             time = toc;
-            timeRecord(find(nSet==i),find(mSet==j)) = timeRecord(find(nSet==i),find(mSet==j)) + time;
+            % timeRecord(find(nSet==i),find(mSet==j),ii) = timeRecord(find(nSet==i),find(mSet==j)) + time;
+            timeRecord(find(nSet==i),find(mSet==j),ii) = time;
+            roundRecord(find(nSet==i),find(mSet==j),ii) = rounds;
         end
     end
 end
 
-timeRecord = timeRecord./iteration;
+% timeRecord = timeRecord./iteration;
 
-figure(1); clf;
-mesh(nSet, mSet,log10(timeRecord))
-xlabel("n")
-ylabel("m")
-zlabel("logtime [s]")
+% figure(1); clf;
+% mesh(nSet, mSet,log10(timeRecord))
+% xlabel("n")
+% ylabel("m")
+% zlabel("logtime [s]")
+%%
+figure(2)
+clf
+for i = 1:3
+    localInfo = roundRecord(i,:,:);
+    % localInfo = timeRecord(i,:,:);
+    errorbar(mSet, mean(localInfo,3), std(localInfo,[],3),'LineWidth',3)
+    hold on
+end
+grid on
+xlabel("Number of Choices")
+ylabel("Number of Rounds")
+ylim([1 inf])
+set(gca,'YScale','log','XScale','log','FontName','times','fontsize',23)
+set(gcf,'Position',[100 100 800 600])
+% labels = "n = " + num2str(nSet);
+legend("n = 2","n = 5","n = 10","n = 20","n = 50");
+
+figure(3)
+clf
+for i = 1:3
+    localInfo = roundRecord(i,:,:);
+    % localInfo = timeRecord(i,:,:);
+    errorbar(mSet, mean(localInfo,3), std(localInfo,[],3),'LineWidth',3)
+    hold on
+end
+grid on
+ub = zeros(1,length(mSet));
+ub_temp = zeros(1,length(mSet));
+for i = 1:length(mSet)
+    m = mSet(i);
+    n = 3;
+    C = 3;
+    ub_temp(i) = log(1/(m+1)/d0/(n-1))/log(gamma);
+    % ub(i) = ub_temp(i) * (m+1) * n * m / 10;
+    % ub(i) = ub_temp(i) * (n+1) * n * n / 10000;
+    % ub(i) = (m+1) * n * m;
+    % ub(i) = ub_temp(i)*1;
+    ub(i) = ub_temp(i) * n;
+    for j = 1:n-1
+        m = n;
+        ub(i) = ub(i) * nchoosek(C+m-n+j-1, m-1);
+    end
+end
+plot(mSet,ub,'r--')
+set(gca,'YScale','log','XScale','log')

@@ -76,3 +76,30 @@ function RunSimulation(assetReserve, taxParam)
     end
     return (;negoOut, shortFall, debug, rounds, shortFall_history, negoOut_history)
 end
+
+function RunVotingSimulation()
+    sectorIdxs = [12, 3, 13]
+    roundLimit = 100
+    n = length(sectorIdxs)
+    coordFactor = zeros(n)
+
+    # 1. Generate CTB
+    out = RunCTBGeneration(sectorIdxs, coordFactor)
+    println("CTB generation done")
+    # 2. Vote
+    votes = zeros(Int, n)
+    for i = 1:n
+        _, idx = findmin(out.scores[i,:])
+        votes[idx] += 1
+    end
+    maxVotes = maximum(votes)
+    tied = findall(==(maxVotes), votes)
+    winner = length(tied) == 1 ? tied[1] : rand(tied)
+    winnerRaw = out.raws[winner]
+    #3. Compute Individual Cost
+    indCost = []
+    for i = 1:length(sectorIdxs)
+        push!(indCost,CTB.computeCost(winnerRaw,sectorIdxs[i]))
+    end
+    return (;indCost, winnerRaw)
+end

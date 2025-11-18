@@ -2,8 +2,9 @@
 % data = load("MC_test_results.mat");
 % data = load("MC_test_results_randomSampling_500.mat");
 % data = load("MC_test_results_randomSampling_1000.mat");
-data = load("MC_test_results_randomSampling_10000.mat");
+% data = load("MC_test_results_randomSampling_10000.mat");
 % data = load("MC_test_results_randomSampling_1000_w_baselines.mat");
+data = load("~/Desktop/MC_test_results_randomSampling_1000_w_baselines.mat");
 % The structure fields:
 % data.assetReserve, data.taxParam, data.repeat, data.rounds, data.shortFall
 
@@ -567,8 +568,8 @@ for i = 1:dataLen
 end
 roundBound = zeros(dataLen,1);
 for i = 1:dataLen
-    roundBound(i) = data.taxParam(i) * Bmax(i);
-    % roundBound(i) = ceil(data.taxParam(i) * Bmax(i));
+    % roundBound(i) = data.taxParam(i) * Bmax(i);
+    roundBound(i) = ceil((data.taxParam(i)) * Bmax(i));
 end
 
 figure(41)
@@ -623,7 +624,7 @@ group6 = naive_SystemCost;
 localPack = [group1;group2;group3;group4;group5;group6];
 group = [ones(length(group1),1); repmat(2,length(group2),1); repmat(3,length(group3),1); repmat(4,dataLen,1); repmat(5,dataLen,1); repmat(6,dataLen,1)];
 % boxplot(CostDataPack,'Labels',{'Ours', 'Centralized-CTOP', 'FCFS-CTOP'})
-boxplot(localPack,group,'Labels',{'Ours (Low k)', 'Ours (Med k)', 'Ours (High k)', 'Centralized-CTOP', 'FCFS-CTOP', 'Naive-CTOP'})
+boxplot(localPack,group,'Labels',{'Ours (Low k)', 'Ours (Med k)', 'Ours (High k)', 'Centralized-CTOP', 'FCFS-CTOP', 'Naive-CTOP'},'Whisker',1.96)
 title("System Cost Comparison")
 ylabel("Cost")
 grid on
@@ -639,7 +640,7 @@ group5 = fcfs_SystemStd;
 group6 = naive_SystemStd;
 localPack = [group1;group2;group3;group4;group5;group6];
 group = [ones(length(group1),1); repmat(2,length(group2),1); repmat(3,length(group3),1); repmat(4,dataLen,1); repmat(5,dataLen,1); repmat(6,dataLen,1)];
-boxplot(localPack,group,'Labels',{'Ours (Low k)', 'Ours (Med k)', 'Ours (High k)', 'Centralized-CTOP', 'FCFS-CTOP', 'Naive-CTOP'})
+boxplot(localPack,group,'Labels',{'Ours (Low k)', 'Ours (Med k)', 'Ours (High k)', 'Centralized-CTOP', 'FCFS-CTOP', 'Naive-CTOP'},'Whisker',1.96)
 title("System Gini Index Comparison")
 ylabel("Gini Index")
 grid on
