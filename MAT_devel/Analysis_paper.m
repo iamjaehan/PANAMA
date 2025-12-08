@@ -1,5 +1,6 @@
 % Load the results from the .mat file
 data = load("~/Desktop/MC_test_results_randomSampling_1000_w_baselines.mat");
+data2 = load("../MC_test_results_voting.mat");
 % The structure fields:
 % data.assetReserve, data.taxParam, data.repeat, data.rounds, data.shortFall
 
@@ -100,7 +101,12 @@ Z1 = find(meanb < Q1);
 Z2 = find(meanb >= Q1 & meanb < Q2);
 Z3 = find(meanb >= Q2);
 
+voteCost = zeros(1000,3);
+for i = 1:1000
+    voteCost(i,:) = cell2mat(data2.indCost{i})';
+end
 
+%%
 
 colors = lines(10);
 % Exp 1. Rounds per k
@@ -145,7 +151,7 @@ semilogx(data.taxParam(Z3), systemStd(Z3), 's', 'Color',[colors(3,:)],'MarkerSiz
 legend({"Low $b$","Med $b$","High $b$"},'interpreter','latex')
 xlabel("Tax parameter $\kappa$",'Interpreter','latex');
 ylabel("Normalized Gini index",'Interpreter','latex')
-title("\textbf{Normalized gini index versus $\kappa$}",'Interpreter','latex')
+title("\textbf{Normalized Gini index versus $\kappa$}",'Interpreter','latex')
 grid on
 set(gcf, 'Position', [1500, 500, 800, 700]);  % Set figure size in pixels
 set(gca, 'FontSize', 23, 'FontName','times new roman');
@@ -208,6 +214,14 @@ for i = 1:dataLen
     naive_SystemStd(i) = ComputeGini(test);
     naive_SystemCost(i) = sum(test);
 end
+
+vote_SystemCost = sum(voteCost,2);
+vote_SystemStd = zeros(1000,1);
+for i = 1:1000
+    vote_SystemStd(i) = ComputeGini(voteCost(i,:));
+end
+vote_SystemCost = repmat(vote_SystemCost,10,1);
+vote_SystemStd = repmat(vote_SystemStd,10,1);
 
 %% Relation Study
 Bmax = zeros(dataLen,1);
@@ -274,7 +288,8 @@ group2 = ours_SystemCost(K2);
 group3 = ours_SystemCost(K3);
 group4 = cent_SystemCost;
 group5 = fcfs_SystemCost;
-group6 = naive_SystemCost;
+% group6 = naive_SystemCost;
+group6 = vote_SystemCost;
 localPack = [group1;group2;group3;group4;group5;group6];
 group = [ones(length(group1),1); repmat(2,length(group2),1); repmat(3,length(group3),1); repmat(4,dataLen,1); repmat(5,dataLen,1); repmat(6,dataLen,1)];
 % boxplot(CostDataPack,'Labels',{'Ours', 'Centralized-CTOP', 'FCFS-CTOP'})
@@ -296,11 +311,12 @@ group2 = ours_SystemStd(K2);
 group3 = ours_SystemStd(K3);
 group4 = cent_SystemStd;
 group5 = fcfs_SystemStd;
-group6 = naive_SystemStd;
+% group6 = naive_SystemStd;
+group6 = vote_SystemStd;
 localPack = [group1;group2;group3;group4;group5;group6];
 group = [ones(length(group1),1); repmat(2,length(group2),1); repmat(3,length(group3),1); repmat(4,dataLen,1); repmat(5,dataLen,1); repmat(6,dataLen,1)];
 boxplot(localPack,group,'Labels',{'Low $\kappa$', 'Med $\kappa$', 'High $\kappa$', 'C-CTOP', 'F-CTOP', 'Voting'},'Whisker',1.96)
-ylabel("Gini Index")
+ylabel("Gini index")
 grid on
 set(gca,'fontsize',23,'FontWeight','normal')
 set(gca, 'FontName', 'Times New Roman', 'TickLabelInterpreter','latex','FontWeight','normal');

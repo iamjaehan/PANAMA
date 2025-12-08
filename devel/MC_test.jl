@@ -70,7 +70,7 @@ results = []
 
 # matwrite("MC_test_results_randomSampling_1000_w_baselines.mat", mat_results; version="v7.4")
 
-testCaseNum = 1000
+testCaseNum = 2
 for testCase = 1:testCaseNum
     out = RunVotingSimulation()
     push!(results, Dict(

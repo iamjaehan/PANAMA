@@ -1,5 +1,5 @@
-nSet = [2, 5, 10];
-mSet = [2, 10, 30, 100, 300, 1000];
+nSet = [3, 10, 30, 100];
+mSet = [3, 10, 30, 100, 300, 1000];
 gamma = 0.9;
 epsilon = 1e-3;
 iteration = 100;
@@ -34,48 +34,52 @@ end
 % ylabel("m")
 % zlabel("logtime [s]")
 %%
+markers = {'o','s','^','d'};  % 각 라인별 마커 지정
 figure(2)
 clf
-for i = 1:3
+for i = 1:4
     localInfo = roundRecord(i,:,:);
     % localInfo = timeRecord(i,:,:);
-    errorbar(mSet, mean(localInfo,3), std(localInfo,[],3),'LineWidth',3)
+    errorbar(mSet, mean(localInfo,3), std(localInfo,[],3)/sqrt(iteration),'LineWidth',2,'Marker','.','MarkerSize',20)
     hold on
 end
 grid on
-xlabel("Number of Choices")
-ylabel("Number of Rounds")
+xlabel("Number of choices ($m$)",'Interpreter','latex')
+ylabel("Number of rounds",'Interpreter','latex')
 ylim([1 inf])
 set(gca,'YScale','log','XScale','log','FontName','times','fontsize',23)
 set(gcf,'Position',[100 100 800 600])
-% labels = "n = " + num2str(nSet);
-legend("n = 2","n = 5","n = 10","n = 20","n = 50");
+legend("$n = 3$","$n = 10$","$n = 30$","$n = 100$","Location","northwest",'interpreter','latex');
+set(gca,'FontName','times','FontSize',23)
+xlim([3 inf])
+ylim([1 8000])
+exportgraphics(gca,'./tacoComplex.pdf','Resolution',300)
 
-figure(3)
-clf
-for i = 1:3
-    localInfo = roundRecord(i,:,:);
-    % localInfo = timeRecord(i,:,:);
-    errorbar(mSet, mean(localInfo,3), std(localInfo,[],3),'LineWidth',3)
-    hold on
-end
-grid on
-ub = zeros(1,length(mSet));
-ub_temp = zeros(1,length(mSet));
-for i = 1:length(mSet)
-    m = mSet(i);
-    n = 3;
-    C = 3;
-    ub_temp(i) = log(1/(m+1)/d0/(n-1))/log(gamma);
-    % ub(i) = ub_temp(i) * (m+1) * n * m / 10;
-    % ub(i) = ub_temp(i) * (n+1) * n * n / 10000;
-    % ub(i) = (m+1) * n * m;
-    % ub(i) = ub_temp(i)*1;
-    ub(i) = ub_temp(i) * n;
-    for j = 1:n-1
-        m = n;
-        ub(i) = ub(i) * nchoosek(C+m-n+j-1, m-1);
-    end
-end
-plot(mSet,ub,'r--')
-set(gca,'YScale','log','XScale','log')
+% figure(3)
+% clf
+% for i = 1:3
+%     localInfo = roundRecord(i,:,:);
+%     % localInfo = timeRecord(i,:,:);
+%     errorbar(mSet, mean(localInfo,3), std(localInfo,[],3),'LineWidth',3)
+%     hold on
+% end
+% grid on
+% ub = zeros(1,length(mSet));
+% ub_temp = zeros(1,length(mSet));
+% for i = 1:length(mSet)
+%     m = mSet(i);
+%     n = 3;
+%     C = 3;
+%     ub_temp(i) = log(1/(m+1)/d0/(n-1))/log(gamma);
+%     % ub(i) = ub_temp(i) * (m+1) * n * m / 10;
+%     % ub(i) = ub_temp(i) * (n+1) * n * n / 10000;
+%     % ub(i) = (m+1) * n * m;
+%     % ub(i) = ub_temp(i)*1;
+%     ub(i) = ub_temp(i) * 1;
+%     for j = 1:n-1
+%         m = n;
+%         ub(i) = ub(i) * nchoosek(C+m-n+j-1, m-1);
+%     end
+% end
+% plot(mSet,ub,'r--')
+% set(gca,'YScale','log','XScale','log')
