@@ -1,12 +1,15 @@
 nSet = [3, 10, 30, 100];
 mSet = [3, 10, 30, 100, 300, 1000];
+% nSet = 3;
+% mSet = 3;
 gamma = 0.9;
-epsilon = 1e-3;
+epsilon = 1e-2;
 iteration = 100;
 d0 = 1;
 
 timeRecord = zeros(length(nSet), length(mSet), iteration);
 roundRecord = zeros(length(nSet), length(mSet), iteration);
+cycleStep = zeros(length(nSet), length(mSet), iteration);
 
 for i = nSet
     for j = mSet
@@ -15,13 +18,16 @@ for i = nSet
             m = j;
             C = rand(n,m);
             b = rand(n,1);
-            disp([num2str(i)+", "+num2str(j)])
+            if mod(ii,10) == 0
+                disp([num2str(i)+", "+num2str(j)+", "+num2str(ii)])
+            end
             tic
-            [~,~,~,rounds] = TACo(C, b, d0, gamma, epsilon);
+            [~,~,~,rounds,maxCycleStep] = TACo(C, b, d0, gamma, epsilon);
             time = toc;
             % timeRecord(find(nSet==i),find(mSet==j),ii) = timeRecord(find(nSet==i),find(mSet==j)) + time;
             timeRecord(find(nSet==i),find(mSet==j),ii) = time;
             roundRecord(find(nSet==i),find(mSet==j),ii) = rounds;
+            cycleStep(find(nSet==i),find(mSet==j),ii) = maxCycleStep;
         end
     end
 end
@@ -37,11 +43,14 @@ end
 markers = {'o','s','^','d'};  % 각 라인별 마커 지정
 figure(2)
 clf
-for i = 1:4
+for i = 1
     localInfo = roundRecord(i,:,:);
     % localInfo = timeRecord(i,:,:);
+    localCycleInfo = cycleStep(i,:,:);
     errorbar(mSet, mean(localInfo,3), std(localInfo,[],3)/sqrt(iteration),'LineWidth',2,'Marker','.','MarkerSize',20)
     hold on
+    % plot(mSet, max(localInfo,[],3),'LineWidth',2,'Marker','+','LineStyle',':')
+    % plot(mSet, max(localCycleInfo,[],3),'LineWidth',2,'Marker','+','LineStyle',':')
 end
 grid on
 xlabel("Number of choices ($m$)",'Interpreter','latex')
@@ -51,8 +60,8 @@ set(gca,'YScale','log','XScale','log','FontName','times','fontsize',23)
 set(gcf,'Position',[100 100 800 600])
 legend("$n = 3$","$n = 10$","$n = 30$","$n = 100$","Location","northwest",'interpreter','latex');
 set(gca,'FontName','times','FontSize',23)
-xlim([3 inf])
-ylim([1 8000])
+xlim([2 1300])
+% ylim([1 8000])
 exportgraphics(gca,'./tacoComplex.pdf','Resolution',300)
 
 % figure(3)
